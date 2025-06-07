@@ -9,15 +9,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Chosen Palette: Warm Neutrals -->
-    <!-- Application Structure Plan: A dashboard-style SPA is chosen for optimal user interaction, translating the linear report into a queryable tool. The structure features a primary control panel with genre and day filters, plus a search bar, allowing users to immediately interrogate the data. The main content area uses a grid to display high-level stats (Key Insights), key artist spotlights, data visualizations (charts), and a detailed, filterable schedule table. This non-linear, task-oriented design empowers users to explore the lineup based on their specific interests (e.g., "show me all DnB on Friday" or "who are the pioneers playing?"), making the dense information from the report highly accessible and digestible, which is the primary goal for usability. -->
-    <!-- Visualization & Content Choices: 
-        - Report Info: Overall genre distribution -> Goal: Inform proportions -> Viz: Doughnut Chart (Chart.js) -> Interaction: Updates on filter -> Justification: Best for showing parts-of-a-whole, visually engaging, and reflects the report's genre analysis.
-        - Report Info: Artist count per stage -> Goal: Compare venues -> Viz: Bar Chart (Chart.js) -> Interaction: Updates on filter -> Justification: Ideal for comparing discrete counts across categories, highlighting the electronic music hotspots identified in the report.
-        - Report Info: Key trends (B2Bs, Pioneers, Live acts) -> Goal: Inform key trends -> Viz: Dynamic Text Cards (HTML/JS) -> Interaction: Numbers update on filter -> Justification: Provides quick, scannable insights directly from the report's conclusions.
-        - Report Info: Full lineup schedule -> Goal: Organize & Explore Details -> Viz: Interactive Table (HTML/JS) -> Interaction: Full filter/search capability, plus new "Get Insights" button with LLM integration -> Justification: The most effective way to present the detailed summary table data for user-driven exploration, enhanced by AI-generated context.
-        - Report Info: Artist Spotlights -> Goal: Highlight key players -> Viz: Styled Cards (HTML/CSS) -> Interaction: Static content for context -> Justification: Provides qualitative context from the report alongside quantitative data. -->
-    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -114,19 +105,6 @@
         }
         .close-button:hover {
             color: #707070;
-        }
-        .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-top: 4px solid #D97706;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -251,7 +229,7 @@
                         <tbody id="schedule-body">
                         </tbody>
                     </table>
-                     <p id="no-results" class="text-center py-8 text-slate-500 hidden">No results match your filters.</p>
+                     <p id="no-results" class="text-center py-8 text-slate-500 hidden"></p>
                 </div>
             </section>
 
@@ -268,9 +246,8 @@
             <span class="close-button" id="close-modal">&times;</span>
             <h3 class="text-2xl font-bold text-amber-700 mb-4" id="modal-artist-name"></h3>
             <div id="modal-content-area" class="text-slate-700 text-base leading-relaxed">
-                <div class="spinner hidden" id="modal-spinner"></div>
                 <p id="modal-artist-bio"></p>
-                <p id="modal-error-message" class="text-red-500 hidden">Failed to load insights. Please try again.</p>
+                <p id="modal-error-message" class="text-red-500 hidden"></p>
             </div>
         </div>
     </div>
@@ -422,7 +399,7 @@ const lineupData = [
     { stage: 'ASSEMBLY', day: 'FRIDAY', time: '01:00 - 03:00', artist: 'CRAIG RICHARDS', genre: 'House, Techno', tags: ['house', 'rave'] },
     { stage: 'ASSEMBLY', day: 'FRIDAY', time: '23:30 - 01:00', artist: 'IVAN SMAGGHE B2B DAVE HARVEY', genre: 'Electro, House, Techno', tags: ['house', 'rave', 'b2b'] },
     { stage: 'ASSEMBLY', day: 'FRIDAY', time: '21:30 - 23:30', artist: 'BINH B2B DJ MASDA', genre: 'Minimal House, Minimal Techno', tags: ['house', 'rave'] },
-    { stage: 'ASSEMBLY', day: 'FRIDAY', time: '18:30 - 20:00', artist: 'SEDEF ADASİ', genre: 'House, Techno', tags: ['house', 'rave'] },
+    { stage: 'ASSEMBLY', day: 'FRIDAY', time: '18:30 - 20:00', artist: 'SEDEF ADASÏ', genre: 'House, Techno', tags: ['house', 'rave'] },
     { stage: 'ASSEMBLY', day: 'FRIDAY', time: '17:00 - 18:30', artist: 'SPRAY', genre: 'House, Techno', tags: ['house', 'rave'] },
     { stage: 'ASSEMBLY', day: 'FRIDAY', time: '15:30 - 17:00', artist: 'A FOR ALPHA B2B PAPA NUGS', genre: 'Bass, UKG, Techno', tags: ['ukg', 'rave', 'b2b'] },
     { stage: 'ASSEMBLY', day: 'FRIDAY', time: '14:00 - 15:30', artist: 'JEROME HILL', genre: 'Techno, Acid, Electro', tags: ['rave'] },
@@ -449,7 +426,7 @@ const lineupData = [
     { stage: 'FIRMLY ROOTED', day: 'THURSDAY', time: '18:00 - 19:00', artist: 'MIA KODEN', genre: 'Electronic', tags: [] },
     { stage: 'FIRMLY ROOTED', day: 'FRIDAY', time: '22:30 - 00:00', artist: 'BAKEY B2B SAM BINGA', genre: 'UKG, Bass, Drum and Bass', tags: ['ukg', 'dnb', 'b2b'] },
     { stage: 'FIRMLY ROOTED', day: 'FRIDAY', time: '21:00 - 22:30', artist: 'BIANCA OBLIVION B2B MANAMI', genre: 'Electronic, House, Techno', tags: ['house', 'rave', 'b2b'] },
-    { stage: 'FIRMLY ROOTED', day: '19:30 - 21:00', time: 'AMY KISNORBO B2B MJK', artist: 'Electronic, House, Techno', genre: '', tags: ['house', 'rave', 'b2b'] },
+    { stage: 'FIRMLY ROOTED', day: 'FRIDAY', time: '19:30 - 21:00', artist: 'AMY KISNORBO B2B MJK', genre: 'Electronic, House, Techno', tags: ['house', 'rave', 'b2b'] },
     { stage: 'FIRMLY ROOTED', day: 'FRIDAY', time: '18:00 - 19:30', artist: 'OBLIG B2B SIR HISS', genre: 'Grime, Dubstep, Bass', tags: ['ukg', 'b2b'] },
     { stage: 'FIRMLY ROOTED', day: 'FRIDAY', time: '16:00 - 18:00', artist: 'CHANNEL ONE', genre: 'Reggae, Dub', tags: ['dnb'] },
     { stage: 'FIRMLY ROOTED', day: 'FRIDAY', time: '15:00 - 16:00', artist: 'DUBKASM', genre: 'Dub, Reggae', tags: ['dnb'] },
@@ -536,17 +513,17 @@ const lineupData = [
     { stage: 'BABYLON UPRISING', day: 'THURSDAY', time: '17:00 - 18:00', artist: 'ARTHI - VILLAGE CUTS TAKEOVER', genre: 'UK Funky, Garage, Bass', tags: ['ukg', 'house'] },
     { stage: 'BABYLON UPRISING', day: 'FRIDAY', time: '01:00 - 02:00', artist: 'LUKAS WIGFLEX (GARAGE SET)', genre: 'Garage, House, Techno', tags: ['ukg', 'house', 'rave'] },
     { stage: 'BABYLON UPRISING', day: 'FRIDAY', time: '00:00 - 01:00', artist: 'ELLA KNIGHT', genre: 'House, Garage, Disco', tags: ['house', 'ukg'] },
-    { stage: 'BABYLON UPRISING', day: '21:00 - 22:00', time: 'SUCHI B2B NIKS - INTROSPECT TAKEOVER', artist: 'House, Techno', genre: '', tags: ['house', 'rave', 'b2b'] },
-    { stage: 'BABYLON UPRISING', day: '20:00 - 21:00', time: 'LESULA B2B RO-G1 - INTROSPECT TAKEOVER', artist: 'Electronic, House', genre: '', tags: ['house', 'b2b'] },
+    { stage: 'BABYLON UPRISING', day: 'FRIDAY', time: '21:00 - 22:00', artist: 'SUCHI B2B NIKS - INTROSPECT TAKEOVER', genre: 'House, Techno', tags: ['house', 'rave', 'b2b'] },
+    { stage: 'BABYLON UPRISING', day: 'FRIDAY', time: '20:00 - 21:00', artist: 'LESULA B2B RO-G1 - INTROSPECT TAKEOVER', genre: 'Electronic, House', tags: ['house', 'b2b'] },
     { stage: 'BABYLON UPRISING', day: 'FRIDAY', time: '17:00 - 19:00', artist: 'JEREMIAH ASIAMAH (LIVE)', genre: 'House, Electronic', tags: ['house', 'live'] },
     { stage: 'BABYLON UPRISING', day: 'SATURDAY', time: '00:00 - 01:00', artist: 'NEFFA-T', genre: 'Dubstep, Grime, Bass', tags: ['ukg'] },
-    { stage: 'BABYLON UPRISING', day: '23:00 - 00:00', time: 'SHEBA Q', artist: 'Dubstep, Bass', genre: '', tags: ['ukg'] },
-    { stage: 'BABYLON UPRISING', day: '22:00 - 23:00', time: 'SAMURAI BREAKS - SSBB TAKEOVER', artist: 'Breakbeat, Bass, UKG', genre: '', tags: ['ukg', 'rave'] },
-    { stage: 'BABYLON UPRISING', day: '21:00 - 22:00', time: 'TOBY ROSS - SSBB TAKEOVER', artist: 'Bass, Electronic', genre: '', tags: [] },
+    { stage: 'BABYLON UPRISING', day: 'SATURDAY', time: '23:00 - 00:00', artist: 'SHEBA Q', genre: 'Dubstep, Bass', tags: ['ukg'] },
+    { stage: 'BABYLON UPRISING', day: 'SATURDAY', time: '22:00 - 23:00', artist: 'SAMURAI BREAKS - SSBB TAKEOVER', genre: 'Breakbeat, Bass, UKG', tags: ['ukg', 'rave'] },
+    { stage: 'BABYLON UPRISING', day: 'SATURDAY', time: '21:00 - 22:00', artist: 'TOBY ROSS - SSBB TAKEOVER', genre: 'Bass, Electronic', tags: [] },
     { stage: 'BABYLON UPRISING', day: 'SATURDAY', time: '20:00 - 21:00', artist: 'ALTERN8 B2B UNCLE DUGS FT MC FIVE ALIVE', genre: 'Hardcore, Rave, Breakbeat', tags: ['rave', 'pioneer', 'b2b'] },
     { stage: 'BABYLON UPRISING', day: 'SUNDAY', time: '17:00 - 18:00', artist: 'DUAL MONITOR', genre: 'Electronic', tags: [] },
-    { stage: 'BABYLON UPRISING', day: '16:00 - 17:00', time: 'DANI WHYLIE', artist: 'House, Techno, Electro', genre: '', tags: ['house', 'rave'] },
-    { stage: 'BABYLON UPRISING', day: '15:00 - 16:00', time: 'MONKEY WRENCH B2B DISMANTLE', artist: 'Bass, Dubstep, UKG', genre: '', tags: ['ukg', 'b2b'] },
+    { stage: 'BABYLON UPRISING', day: 'SUNDAY', time: '16:00 - 17:00', artist: 'DANI WHYLIE', genre: 'House, Techno, Electro', tags: ['house', 'rave'] },
+    { stage: 'BABYLON UPRISING', day: 'SUNDAY', time: '15:00 - 16:00', artist: 'MONKEY WRENCH B2B DISMANTLE', genre: 'Bass, Dubstep, UKG', tags: ['ukg', 'b2b'] },
     { stage: 'BABYLON UPRISING', day: 'SUNDAY', time: '12:00 - 15:00', artist: 'RUFFNEK DISKOTEK 20TH BIRTHDAY FT. DUB BOY, ATKI2 & GUTTY', genre: 'Dub, Reggae, Dancehall', tags: ['dnb'] },
     { stage: 'BBC INTRODUCING', day: 'THURSDAY', time: '20:00 - 23:00', artist: 'BBC RADIO 1 DANCE TAKEOVER', genre: 'Electronic, Dance', tags: [] },
     { stage: 'BIMBLE INN', day: 'FRIDAY', time: '03:15 - 04:45', artist: 'ORBITAL\'S PHIL HARTNOLL', genre: 'Rave, Progressive House, Trance, Electronic', tags: ['rave', 'house', 'pioneer', 'hard'] },
@@ -562,20 +539,20 @@ const lineupData = [
     { stage: 'GLADE DOME', day: 'FRIDAY', time: '22:30 - 00:00', artist: 'MATHEW JONSON (LIVE)', genre: 'Minimal Techno, House', tags: ['house', 'rave', 'live'] },
     { stage: 'GLADE DOME', day: 'FRIDAY', time: '21:00 - 22:30', artist: 'MARGARET DYGAS', genre: 'Minimal Techno, House', tags: ['house', 'rave'] },
     { stage: 'GLADE DOME', day: 'FRIDAY', time: '19:30 - 21:00', artist: 'ION LUDWIG (LIVE)', genre: 'Minimal Techno, House', tags: ['house', 'rave', 'live'] },
-    { stage: 'GLADE DOME', day: 'FRIDAY', time: '18:00 - 19:30', artist: 'KEARUN', genre: 'Electronic, House', tags: ['house'] },
+    { stage: 'GLADE DOME', day: 'FRIDAY', time: '18:00 - 19:30', artist: 'KEARUN', genre: 'Electronic', tags: ['house'] },
     { stage: 'GLADE DOME', day: 'FRIDAY', time: '16:30 - 18:00', artist: 'RALPH LAWSON (LOST IN DUB)', genre: 'Dub Techno, Electronic', tags: ['dnb', 'rave'] },
     { stage: 'GLADE DOME', day: 'SATURDAY', time: '01:30 - 02:55', artist: 'TRISTAN DA CUNHA B2B BRAWTHER', genre: 'House, Minimal House', tags: ['house', 'b2b'] },
     { stage: 'GLADE DOME', day: 'SATURDAY', time: '00:00 - 01:30', artist: 'LAIDLAW B2B DR BANANA', genre: 'House, UK Garage', tags: ['house', 'ukg', 'b2b'] },
     { stage: 'GLADE DOME', day: 'SATURDAY', time: '22:30 - 00:00', artist: 'SAOIRSE', genre: 'House, Techno, Electro', tags: ['house', 'rave'] },
     { stage: 'GLADE DOME', day: 'SATURDAY', time: '21:00 - 22:30', artist: 'BRADLEY ZERO', genre: 'House, Disco, Jazz, Funk', tags: ['house'] },
-    { stage: 'GLADE DOME', day: 'SATURDAY', time: '19:30 - 21:00', artist: 'KEEFY G B2B GEORGIA', genre: 'Electronic, House', tags: ['house', 'b2b'] },
-    { stage: 'GLADE DOME', day: 'SATURDAY', time: '18:00 - 19:30', artist: 'MARLIE B2B PACH. B2B LOCKY', genre: 'Electronic, House', tags: ['house', 'b2b'] },
+    { stage: 'GLADE DOME', day: 'SATURDAY', time: '19:30 - 21:00', artist: 'KEEFY G B2B GEORGIA', genre: 'Electronic', tags: ['house', 'b2b'] },
+    { stage: 'GLADE DOME', day: 'SATURDAY', time: '18:00 - 19:30', artist: 'MARLIE B2B PACH. B2B LOCKY', genre: 'Electronic', tags: ['house', 'b2b'] },
     { stage: 'GLADE DOME', day: 'SATURDAY', time: '16:30 - 18:00', artist: 'FILA BRAZILLIA (DJ)', genre: 'Downtempo, Electronic, Trip Hop', tags: [] },
     { stage: 'GLADE DOME', day: 'SATURDAY', time: '12:00 - 14:00', artist: 'TRUFFLE 101 PRESENTS: LAZY SUSAN (2STEPBEC, OLIVER.R, ZEUS)', genre: '2-Step, UKG', tags: ['ukg'] },
     { stage: 'GLADE DOME', day: 'SUNDAY', time: '22:15 - 23:45', artist: 'DJ BORING B2B DJ SEINFELD', genre: 'Lo-Fi House', tags: ['house', 'b2b'] },
-    { stage: 'GLADE DOME', day: 'SUNDAY', time: '12:00 - 13:30', artist: 'WAX MATERIAL', genre: 'Electronic, House', tags: ['house'] },
+    { stage: 'GLADE DOME', day: 'SUNDAY', time: '12:00 - 13:30', artist: 'WAX MATERIAL', genre: 'Electronic', tags: ['house'] },
     { stage: 'TREE STAGE', day: 'THURSDAY', time: '02:05 - 02:55', artist: 'ALEXIS TAYLOR (HOT CHIP)', genre: 'Indie Electronic, House, Disco', tags: ['house'] },
-    { stage: 'TREE STAGE', day: 'THURSDAY', time: '01:05 - 01:55', artist: 'NORTHSOUTH: HEADING EAST', genre: 'Electronic, House, Techno', tags: ['house', 'rave'] },
+    { stage: 'TREE STAGE', day: 'THURSDAY', time: '01:05 - 01:55', artist: 'NORTHSOUTH: HEADING EAST', genre: 'Electronic', tags: ['house', 'rave'] },
     { stage: 'TREE STAGE', day: 'THURSDAY', time: '23:55 - 00:55', artist: 'DANIEL AVERY (AMBIENT LIVE), CHERUB SANSON & TIM WHEATER (INSTRUMENTAL SOUND JOURNEY) – QUANTUM SOUND MEDITATION', genre: 'Ambient, Electronic, Techno, House', tags: ['house', 'rave', 'live'] },
     { stage: 'TREE STAGE', day: 'THURSDAY', time: '18:50 - 19:50', artist: 'LEON VYNEHALL PRESENTS: WARM ROMANTIC', genre: 'House, Techno, Ambient Techno', tags: ['house', 'rave'] },
     { stage: 'TREE STAGE', day: 'SATURDAY', time: '23:50 - 00:50', artist: 'JUAN ATKINS (AMBIENT)', genre: 'Techno, Electro, Ambient', tags: ['rave', 'pioneer'] },
@@ -584,6 +561,25 @@ const lineupData = [
 
 let genreChart, stageChart;
 let currentFilters = { genre: 'all', day: 'all', search: '' };
+
+// Pre-processed artist insights
+const artistInsights = {
+    "NILE RODGERS & CHIC": "Nile Rodgers & Chic are synonymous with disco, having defined the sound of the late 1970s with timeless hits like 'Le Freak.' Their prominent presence on major stages highlights disco's enduring mainstream appeal and its foundational role in dance music evolution. They embody the timeless, unifying power of groove in electronic music's lineage.",
+    "FABIO & GROOVERIDER AND THE OUTLOOK ORCHESTRA": "Fabio & Grooverider are undisputed pioneers of drum & bass and jungle, instrumental in shaping the genre from its early hardcore roots. Their performance with The Outlook Orchestra elevates D&B to an orchestral scale, showcasing its artistic depth and mainstream acceptance. They represent the sophisticated musicality within high-energy electronic styles.",
+    "THE PRODIGY": "The Prodigy emerged as a pivotal force in the UK rave scene, aggressively fusing breakbeat, techno, and big beat with punk energy. Albums like 'Experience' and 'Music for the Jilted Generation' became anthems of a generation, pushing electronic music into the mainstream. Their enduring power and relevance at Glastonbury showcase how the spirit of 90s rave continues to captivate massive audiences with high-energy, genre-bending electronic acts.",
+    "PINKPANTHERESS": "PinkPantheress is a modern innovator blending alt-pop, drum and bass, and 2-step garage. Her short, hooky, and addictive songs are designed for virality, successfully translating TikTok fame into mainstream success. Her presence at Glastonbury exemplifies the festival's embrace of emerging artists who are redefining electronic genres for a new generation, showcasing the genre's adaptability and crossover appeal.",
+    "FOUR TET": "Four Tet (Kieran Hebden) is a highly influential electronic artist known for his genre-bending approach that seamlessly integrates elements of house, techno, and IDM with organic textures. His work consistently blurs the lines between ambient soundscapes and intricate dancefloor rhythms, making him a cornerstone of modern experimental electronic music. His diverse sets are a testament to his versatility and high demand within the electronic scene.",
+    "FATBOY SLIM": "Fatboy Slim (Norman Cook) is a seminal figure in the big beat genre, popularizing its fusion of hip-hop breakbeats, rock samples, and electronic dance music in the 1990s. He also released early acid house records and co-founded the influential 'Big Beat Boutique' club night. His energetic sets often blend elements of acid house, techno, and various club sounds, cementing his legacy as a pioneer of accessible yet impactful electronic music.",
+    "GOLDIE (LIVE)": "Goldie is a true pioneer and visionary of drum & bass and jungle, instrumental in shaping the genre's intricate rhythms and deep atmospherics. His label Metalheadz became a definitive platform for the sound, known for its complex, cinematic productions. His 'LIVE' sets promise a masterclass in the genre's evolution, showcasing the artistic depth and enduring power of D&B.",
+    "DJ EZ": "DJ EZ is widely regarded as a definitive UK garage DJ and a pioneer of the genre, known for his impeccable mixing skills and electrifying energy. His long-running radio show and 'Pure Garage' compilations cemented his status as an ambassador for UKG, showcasing its infectious rhythms and soulful vocals. His sets are a cornerstone for any UK garage enthusiast, bridging classic and modern sounds.",
+    "AMELIE LENS": "Amelie Lens is a prominent figure in contemporary techno, known for her high-energy, fast-paced sets that often push the boundaries of dance music. Her style blends powerful, driving techno with elements of hard dance and electronic sounds, creating an immersive and intense experience on the dancefloor. She represents the harder, more relentless side of current electronic music.",
+    "HYBRID MINDS": "Hybrid Minds are masters of soulful drum & bass, renowned for their signature style that blends intricate, liquid rhythms with emotive vocals and subtle songcraft. Their music is characterized by its melodic beauty and deep, atmospheric soundscapes, making them a leading force in the contemporary D&B scene. They offer a more melodic and introspective side to the high-energy genre.",
+    "SHY FX B2B EATS EVERYTHING": "Shy FX is a legendary figure in jungle and drum & bass, known for his groundbreaking productions and high-energy sets that blend ragga, jungle, and D&B. Eats Everything is a prominent UK DJ and producer primarily known for house and techno, often infusing his sets with elements of rave and acid. Their B2B set promises a dynamic fusion, showcasing the versatility and cross-pollination of genres within electronic music, from jungle's raw energy to house and techno's rhythmic depth.",
+    "JOY ORBISON": "Joy Orbison is an influential figure in UK electronic music, renowned for his eclectic and genre-blurring style that seamlessly weaves together elements of house, dubstep, UK funky, UK garage, and old-school jungle. His productions often feature a distinctive atmospheric quality combined with intricate rhythms and deep basslines. He embodies the fluidity and innovation characteristic of the broader UK bass music scene.",
+    "ELIZA ROSE": "Eliza Rose is a breakout artist who gained significant traction with her house and UK garage productions, particularly her chart-topping track 'B.O.T.A. (Baddest Of Them All)'. Her music often blends soulful vocals with classic house grooves and infectious UKG rhythms, bringing a fresh, contemporary feel to these established genres. She represents the strong resurgence of UK Garage and its crossover appeal.",
+    "A GUY CALLED GERALD + THE JUNGLE DRUMMER (LIVE)": "A Guy Called Gerald is a foundational figure in acid house, early techno, and jungle, widely celebrated for his seminal track 'Voodoo Ray'. He was crucial in shaping the organic, percussive elements that define jungle. His 'LIVE' sets, often featuring a live drummer, emphasize the raw, improvisational energy at the heart of electronic music, bridging its early experimental roots with contemporary performance.",
+    "SHERELLE": "Sherelle is a leading figure in the new generation of electronic artists, pushing high-speed rave, jungle, drum & bass, footwork, and juke music. She is celebrated for her electrifying, high-energy sets and her commitment to fostering inclusivity within the dance music scene. Her sound embodies the cutting edge of UK bass music, blending rapid-fire rhythms with intense energy."
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     setupFilters();
@@ -647,6 +643,7 @@ function renderSchedule(data) {
     const noResults = document.getElementById('no-results');
     tbody.innerHTML = '';
     if (data.length === 0) {
+        noResults.textContent = 'No results match your filters.';
         noResults.classList.remove('hidden');
         return;
     }
@@ -771,12 +768,11 @@ function renderCharts(data) {
     });
 }
 
-// LLM Integration for Artist Insights
+// Artist Insight Modal
 const artistModal = document.getElementById('artist-modal');
 const closeModalBtn = document.getElementById('close-modal');
 const modalArtistName = document.getElementById('modal-artist-name');
 const modalArtistBio = document.getElementById('modal-artist-bio');
-const modalSpinner = document.getElementById('modal-spinner');
 const modalErrorMessage = document.getElementById('modal-error-message');
 
 function setupModal() {
@@ -790,44 +786,18 @@ function setupModal() {
     });
 }
 
-async function showArtistInsights(artistName) {
+function showArtistInsights(artistName) {
     modalArtistName.textContent = artistName;
-    modalArtistBio.textContent = '';
-    modalErrorMessage.classList.add('hidden');
-    modalSpinner.classList.remove('hidden');
-    artistModal.classList.add('open');
+    modalErrorMessage.classList.add('hidden'); // Hide any previous error message
 
-    try {
-        let chatHistory = [];
-        const prompt = `Provide a concise summary of ${artistName}'s music style and significance within electronic music genres such as drum and bass, dnb, jungle, hardcore, happy hardcore, acid house, 90s rave, garage, ukg, speed garage, hard house, hard trance, house, and disco. Keep the summary to 3-4 sentences.`;
-        chatHistory.push({ role: "user", parts: [{ text: prompt }] });
-        const payload = { contents: chatHistory };
-        const apiKey = ""; // Canvas will automatically provide the API key
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        const result = await response.json();
-        if (result.candidates && result.candidates.length > 0 &&
-            result.candidates[0].content && result.candidates[0].content.parts &&
-            result.candidates[0].content.parts.length > 0) {
-            const text = result.candidates[0].content.parts[0].text;
-            modalArtistBio.textContent = text;
-        } else {
-            modalErrorMessage.textContent = 'No insights found for this artist.';
-            modalErrorMessage.classList.remove('hidden');
-        }
-    } catch (error) {
-        console.error('Error fetching artist insights:', error);
-        modalErrorMessage.textContent = 'Failed to load insights due to a network or API error. Please try again.';
-        modalErrorMessage.classList.remove('hidden');
-    } finally {
-        modalSpinner.classList.add('hidden');
+    const bio = artistInsights[artistName];
+    if (bio) {
+        modalArtistBio.textContent = bio;
+    } else {
+        modalArtistBio.textContent = 'No specific insights available for this artist at this time. Please check their official channels for more information.';
+        modalErrorMessage.classList.remove('hidden'); // Show a message that no insight was found
     }
+    artistModal.classList.add('open');
 }
 </script>
 </body>
