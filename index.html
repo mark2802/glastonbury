@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glastonbury 2025: Electronic Music Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals -->
+    <!-- Application Structure Plan: A dashboard-style SPA is chosen for optimal user interaction, translating the linear report into a queryable tool. The structure features a primary control panel with genre and day filters, plus a search bar, allowing users to immediately interrogate the data. The main content area uses a grid to display high-level stats (Key Insights), key artist spotlights, data visualizations (charts), and a detailed, filterable schedule table. This non-linear, task-oriented design empowers users to explore the lineup based on their specific interests (e.g., "show me all DnB on Friday" or "who are the pioneers playing?"), making the dense information from the report highly accessible and digestible, which is the primary goal for usability. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Overall genre distribution -> Goal: Inform proportions -> Viz: Doughnut Chart (Chart.js) -> Interaction: Updates on filter -> Justification: Best for showing parts-of-a-whole, visually engaging, and reflects the report's genre analysis.
+        - Report Info: Artist count per stage -> Goal: Compare venues -> Viz: Bar Chart (Chart.js) -> Interaction: Updates on filter -> Justification: Ideal for comparing discrete counts across categories, highlighting the electronic music hotspots identified in the report.
+        - Report Info: Key trends (B2Bs, Pioneers, Live acts) -> Goal: Inform key trends -> Viz: Dynamic Text Cards (HTML/JS) -> Interaction: Numbers update on filter -> Justification: Provides quick, scannable insights directly from the report's conclusions.
+        - Report Info: Full lineup schedule -> Goal: Organize & Explore Details -> Viz: Interactive Table (HTML/JS) -> Interaction: Full filter/search capability, plus new "Get Insights" button with LLM integration -> Justification: The most effective way to present the detailed summary table data for user-driven exploration, enhanced by AI-generated context.
+        - Report Info: Artist Spotlights -> Goal: Highlight key players -> Viz: Styled Cards (HTML/CSS) -> Interaction: Static content for context -> Justification: Provides qualitative context from the report alongside quantitative data. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDFBF7; /* Warm Beige */
+            color: #4A4A4A; /* Dark Gray */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 320px;
+            max-height: 40vh;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 380px;
+            }
+        }
+        .filter-btn {
+            transition: all 0.2s ease-in-out;
+        }
+        .filter-btn.active {
+            background-color: #D97706; /* Amber-600 */
+            color: #ffffff;
+            font-weight: 600;
+        }
+        .table-cell {
+            padding: 12px 16px;
+            border-bottom: 1px solid #E5E7EB;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F1F5F9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94A3B8;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748B;
+        }
+
+        /* Modal specific styles */
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .modal.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: #ffffff;
+            margin: auto;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            position: relative;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            transform: translateY(20px);
+            transition: transform 0.3s ease-in-out;
+        }
+        .modal.open .modal-content {
+            transform: translateY(0);
+        }
+        .close-button {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            color: #A0A0A0;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .close-button:hover {
+            color: #707070;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-top: 4px solid #D97706;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto p-4 md:p-8">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-amber-700 tracking-tight">Glastonbury 2025</h1>
+            <p class="text-xl md:text-2xl text-slate-600 mt-2">Your Interactive Electronic Music Guide</p>
+        </header>
+
+        <main id="app">
+
+            <section id="controls" class="mb-8 p-6 bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg sticky top-4 z-10">
+                 <div class="mb-4">
+                    <h3 class="font-semibold text-lg mb-3 text-slate-700">Filter by Genre Family</h3>
+                    <div id="genre-filters" class="flex flex-wrap gap-2">
+                        <button data-genre="all" class="filter-btn active px-4 py-2 text-sm rounded-full bg-slate-200 text-slate-700">All Genres</button>
+                        <button data-genre="dnb" class="filter-btn px-4 py-2 text-sm rounded-full bg-slate-200 text-slate-700">Drum & Bass / Jungle</button>
+                        <button data-genre="house" class="filter-btn px-4 py-2 text-sm rounded-full bg-slate-200 text-slate-700">House / Disco</button>
+                        <button data-genre="ukg" class="filter-btn px-4 py-2 text-sm rounded-full bg-slate-200 text-slate-700">UK Garage</button>
+                        <button data-genre="rave" class="filter-btn px-4 py-2 text-sm rounded-full bg-slate-200 text-slate-700">Rave / Hardcore / Acid</button>
+                        <button data-genre="hard" class="filter-btn px-4 py-2 text-sm rounded-full bg-slate-200 text-slate-700">Hard House / Trance</button>
+                    </div>
+                </div>
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h3 class="font-semibold text-lg mb-3 text-slate-700">Filter by Day</h3>
+                        <div id="day-filters" class="flex flex-wrap gap-2">
+                           <button data-day="all" class="filter-btn active px-4 py-2 text-sm rounded-full bg-slate-200 text-slate-700">All Days</button>
+                           <button data-day="THURSDAY" class="filter-btn px-4 py-2 text-sm rounded-full bg-slate-200 text-slate-700">Thursday</button>
+                           <button data-day="FRIDAY" class="filter-btn px-4 py-2 text-sm rounded-full bg-slate-200 text-slate-700">Friday</button>
+                           <button data-day="SATURDAY" class="filter-btn px-4 py-2 text-sm rounded-full bg-slate-200 text-slate-700">Saturday</button>
+                           <button data-day="SUNDAY" class="filter-btn px-4 py-2 text-sm rounded-full bg-slate-200 text-slate-700">Sunday</button>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-lg mb-3 text-slate-700">Search Artist</h3>
+                        <input type="text" id="search-input" class="w-full px-4 py-2 border border-slate-300 rounded-full focus:ring-2 focus:ring-amber-500 focus:outline-none" placeholder="e.g., Goldie, PinkPantheress...">
+                    </div>
+                </div>
+            </section>
+            
+            <section id="key-insights" class="mb-8">
+                 <p class="text-slate-600 mb-4 max-w-4xl mx-auto text-center">Glastonbury's 2025 lineup is a testament to the enduring legacy and vibrant future of electronic music. The numbers below update as you filter, offering a snapshot of this incredible curation and bringing the report's conclusions to life. Explore the pioneers who built these sounds, the unique B2B sets, and the sheer volume of talent across the festival.</p>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div class="bg-white p-4 rounded-2xl shadow-md">
+                        <p class="text-3xl font-bold text-amber-600" id="total-acts">0</p>
+                        <p class="text-sm text-slate-500">Total Acts</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-md">
+                        <p class="text-3xl font-bold text-amber-600" id="pioneer-acts">0</p>
+                        <p class="text-sm text-slate-500">Pioneer Artists</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-md">
+                        <p class="text-3xl font-bold text-amber-600" id="b2b-sets">0</p>
+                        <p class="text-sm text-slate-500">B2B / Collabs</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-md">
+                        <p class="text-3xl font-bold text-amber-600" id="live-sets">0</p>
+                        <p class="text-sm text-slate-500">Live Sets</p>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="visualizations" class="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="bg-white p-6 rounded-2xl shadow-lg">
+                    <h3 class="font-bold text-xl mb-4 text-center text-slate-700">Acts by Genre Family</h3>
+                     <p class="text-slate-600 mb-4 text-sm text-center">This chart visualizes the report's findings on genre distribution. Use the filters to see how the balance shifts. Notice the strong presence of House & Disco, forming the backbone of the electronic lineup.</p>
+                    <div class="chart-container">
+                        <canvas id="genre-chart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-lg">
+                    <h3 class="font-bold text-xl mb-4 text-center text-slate-700">Top Stages for Electronic Music</h3>
+                    <p class="text-slate-600 mb-4 text-sm text-center">Where's the party? This chart highlights the key stages hosting the most electronic acts, confirming the report's analysis that Arcadia, Glade, and the Silver Hayes venues (Levels, Lonely Hearts Club) are epicenters for dance music fans.</p>
+                    <div class="chart-container">
+                        <canvas id="stage-chart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section id="artist-spotlights" class="mb-8">
+                 <h2 class="text-3xl font-bold text-center mb-2 text-slate-800">Artist Spotlights</h2>
+                 <p class="text-slate-600 mb-6 max-w-4xl mx-auto text-center">As detailed in the report, from rave icons to genre-defining pioneers, these are some of the key players shaping the sound of Glastonbury 2025. Their presence highlights the festival's commitment to showcasing both the history and future of electronic music.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col items-center text-center">
+                        <h4 class="font-bold text-lg text-amber-700">The Prodigy</h4>
+                        <p class="text-sm text-slate-500 mt-2">Synonymous with 90s rave, their aggressive fusion of breakbeat, techno, and punk energy continues to captivate massive audiences, headlining the Other Stage.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col items-center text-center">
+                        <h4 class="font-bold text-lg text-amber-700">Fabio & Grooverider</h4>
+                        <p class="text-sm text-slate-500 mt-2">Undisputed pioneers of D&B and jungle. Their performance with The Outlook Orchestra elevates the genre, celebrating their immense legacy.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col items-center text-center">
+                        <h4 class="font-bold text-lg text-amber-700">Nile Rodgers & Chic</h4>
+                        <p class="text-sm text-slate-500 mt-2">The architects of disco. Their presence on the Pyramid Stage underscores the timeless, unifying power of disco in the evolution of all dance music.</p>
+                    </div>
+                     <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col items-center text-center">
+                        <h4 class="font-bold text-lg text-amber-700">PinkPantheress</h4>
+                        <p class="text-sm text-slate-500 mt-2">A modern innovator blending D&B and 2-step garage with alt-pop. Her set exemplifies the festival's embrace of emerging, genre-redefining artists.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="schedule" class="bg-white p-6 rounded-2xl shadow-lg">
+                <h2 class="text-3xl font-bold text-center mb-2 text-slate-800">Full Lineup Schedule</h2>
+                <p class="text-slate-600 mb-6 max-w-4xl mx-auto text-center">Dive into the details from the report's summary table. Use the filters at the top of the page to browse the full schedule. Search for your favorite artists or discover new ones by exploring the lineup by genre, day, and stage. Click the "✨ Get Insights" button to learn more about an artist.</p>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-100 text-slate-600">
+                            <tr>
+                                <th class="table-cell">Artist / DJ</th>
+                                <th class="table-cell">Stage</th>
+                                <th class="table-cell">Day</th>
+                                <th class="table-cell">Time</th>
+                                <th class="table-cell">Genre(s) Identified</th>
+                                <th class="table-cell"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="schedule-body">
+                        </tbody>
+                    </table>
+                     <p id="no-results" class="text-center py-8 text-slate-500 hidden">No results match your filters.</p>
+                </div>
+            </section>
+
+        </main>
+        
+        <footer class="text-center mt-12 text-xs text-slate-400">
+            <p>This is an interactive visualization of the Glastonbury 2025 Electronic Music Programming Report. All data is for illustrative purposes.</p>
+        </footer>
+    </div>
+
+    <!-- Artist Insight Modal -->
+    <div id="artist-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="close-modal">&times;</span>
+            <h3 class="text-2xl font-bold text-amber-700 mb-4" id="modal-artist-name"></h3>
+            <div id="modal-content-area" class="text-slate-700 text-base leading-relaxed">
+                <div class="spinner hidden" id="modal-spinner"></div>
+                <p id="modal-artist-bio"></p>
+                <p id="modal-error-message" class="text-red-500 hidden">Failed to load insights. Please try again.</p>
+            </div>
+        </div>
+    </div>
+
+<script>
+const lineupData = [
+    { stage: 'PYRAMID STAGE', day: 'SUNDAY', time: '18:00 - 19:00', artist: 'NILE RODGERS & CHIC', genre: 'Disco, Funk, Pop', tags: ['house', 'pioneer'] },
+    { stage: 'OTHER STAGE', day: 'FRIDAY', time: '11:30 - 12:30', artist: 'FABIO & GROOVERIDER AND THE OUTLOOK ORCHESTRA', genre: 'Drum and Bass, Jungle', tags: ['dnb', 'pioneer'] },
+    { stage: 'OTHER STAGE', day: 'SATURDAY', time: '22:30 - 23:45', artist: 'CHARLI XCX', genre: 'Dance Pop, Electronic, Hyperpop', tags: ['ukg', 'rave'] },
+    { stage: 'OTHER STAGE', day: 'SATURDAY', time: '18:45 - 19:45', artist: 'EZRA COLLECTIVE', genre: 'Jazz-Funk, Afrobeat, Hip Hop', tags: ['house'] },
+    { stage: 'OTHER STAGE', day: 'SUNDAY', time: '21:45 - 23:15', artist: 'THE PRODIGY', genre: 'Breakbeat, Techno, Big Beat, 90s Rave, Hardcore', tags: ['rave', 'pioneer', 'live'] },
+    { stage: 'WEST HOLTS STAGE', day: 'FRIDAY', time: '22:15 - 23:45', artist: 'MARIBOU STATE', genre: 'Leftfield, House, Downtempo, Contemporary R&B', tags: ['house'] },
+    { stage: 'WEST HOLTS STAGE', day: 'SUNDAY', time: '21:45 - 23:15', artist: 'OVERMONO', genre: 'House, Techno, Electronic', tags: ['house', 'rave'] },
+    { stage: 'WOODSIES', day: 'FRIDAY', time: '22:30 - 23:45', artist: 'FOUR TET', genre: 'Electronic, House', tags: ['house'] },
+    { stage: 'WOODSIES', day: 'FRIDAY', time: '21:00 - 22:00', artist: 'FLOATING POINTS', genre: 'House, Techno, Disco, Electronic', tags: ['house'] },
+    { stage: 'WOODSIES', day: 'FRIDAY', time: '19:30 - 20:30', artist: 'PINKPANTHERESS', genre: 'Alt-Pop, Drum and Bass, 2-step Garage, UKG', tags: ['ukg', 'dnb'] },
+    { stage: 'WOODSIES', day: 'SUNDAY', time: '21:30 - 22:45', artist: 'JORJA SMITH', genre: 'Contemporary R&B, UK Garage, 2-step', tags: ['ukg'] },
+    { stage: 'WOODSIES', day: 'SUNDAY', time: '20:00 - 21:00', artist: 'AJ TRACEY', genre: 'Grime, UK Garage, Hip Hop', tags: ['ukg'] },
+    { stage: 'THE PARK STAGE', day: 'SATURDAY', time: '23:00 - 00:15', artist: 'CARIBOU', genre: 'Electronic, House', tags: ['house'] },
+    { stage: 'ARCADIA', day: 'FRIDAY', time: '02:00 - 03:00', artist: 'JOB JOBSE B2B PALMS TRAX', genre: 'House, Disco', tags: ['house', 'b2b'] },
+    { stage: 'ARCADIA', day: 'FRIDAY', time: '01:00 - 02:00', artist: 'ROMY', genre: 'House, Electronic', tags: ['house'] },
+    { stage: 'ARCADIA', day: 'FRIDAY', time: '00:00 - 01:00', artist: 'SONNY FODERA', genre: 'House', tags: ['house'] },
+    { stage: 'ARCADIA', day: 'FRIDAY', time: '22:50 - 23:50', artist: 'MAX COOPER', genre: 'Techno, House, Electronic', tags: ['house', 'rave'] },
+    { stage: 'ARCADIA', day: 'FRIDAY', time: '21:55 - 22:50', artist: 'OPTIMO (ESPACIO)', genre: 'Experimental, Acid, House', tags: ['house', 'rave'] },
+    { stage: 'ARCADIA', day: 'FRIDAY', time: '21:00 - 21:55', artist: 'LOGIC1000', genre: 'Techno, House, Pop, Downtempo, Ambient', tags: ['house'] },
+    { stage: 'ARCADIA', day: 'SATURDAY', time: '02:00 - 03:00', artist: 'GROOVE ARMADA B2B JUNGLE (DJ SET)', genre: 'House, Electronic, Disco', tags: ['house', 'b2b'] },
+    { stage: 'ARCADIA', day: 'SATURDAY', time: '01:00 - 02:00', artist: 'ANNIE MAC B2B JAMZ SUPERNOVA', genre: 'Electronic, House, Breakbeat, UKG', tags: ['house', 'ukg', 'b2b'] },
+    { stage: 'ARCADIA', day: 'SATURDAY', time: '00:00 - 01:00', artist: 'FOUR TET', genre: 'Electronic, House', tags: ['house'] },
+    { stage: 'ARCADIA', day: 'SATURDAY', time: '22:50 - 23:50', artist: 'MICHAEL BIBI B2B SOLOMUN', genre: 'Tech House, Deep House, Techno', tags: ['house', 'b2b'] },
+    { stage: 'ARCADIA', day: 'SATURDAY', time: '21:55 - 22:50', artist: 'HANNAH WANTS', genre: 'House', tags: ['house'] },
+    { stage: 'ARCADIA', day: 'SATURDAY', time: '21:00 - 21:55', artist: 'DANNY HOWARD', genre: 'House, Tech House', tags: ['house'] },
+    { stage: 'ARCADIA', day: 'SUNDAY', time: '01:30 - 02:30', artist: 'BASSLAYERZ B2B BORN ON ROAD', genre: 'Drum and Bass, Jungle', tags: ['dnb', 'b2b'] },
+    { stage: 'ARCADIA', day: 'SUNDAY', time: '00:10 - 01:30', artist: 'SHY FX B2B EATS EVERYTHING', genre: 'Drum and Bass, Jungle, House, Techno', tags: ['dnb', 'house', 'pioneer', 'b2b'] },
+    { stage: 'ARCADIA', day: 'SUNDAY', time: '23:40 - 00:10', artist: 'BRU-C', genre: 'Drum and Bass, Grime, UK Bass', tags: ['dnb', 'ukg'] },
+    { stage: 'ARCADIA', day: 'SUNDAY', time: '22:30 - 23:30', artist: 'GIRLS DONT SYNC', genre: 'UK Garage, House, Bass', tags: ['ukg', 'house'] },
+    { stage: 'ARCADIA', day: 'SUNDAY', time: '21:30 - 22:30', artist: 'DR BANANA B2B GALLEGOS', genre: 'UK Garage, House, Techno', tags: ['ukg', 'house', 'b2b'] },
+    { stage: 'ARCADIA', day: 'SUNDAY', time: '21:00 - 21:30', artist: 'EVA LAZARUS', genre: 'Reggae, Dub, Soul, Electronic', tags: ['dnb'] },
+    { stage: 'ARCADIA', day: 'SUNDAY', time: '20:00 - 21:00', artist: 'JEREMIAH ASIAMAH', genre: 'House, Electronic', tags: ['house'] },
+    { stage: 'GLADE', day: 'THURSDAY', time: '00:30 - 02:00', artist: 'SALLY C', genre: 'House, Hip House, Acid, Breakbeat', tags: ['house', 'rave'] },
+    { stage: 'GLADE', day: 'THURSDAY', time: '23:00 - 00:30', artist: 'JOY ORBISON', genre: 'House, Dubstep, UK Funky, UK Garage, Jungle', tags: ['house', 'ukg', 'dnb'] },
+    { stage: 'GLADE', day: 'THURSDAY', time: '21:45 - 23:00', artist: 'ELIZA ROSE', genre: 'House, UK Garage', tags: ['house', 'ukg'] },
+    { stage: 'GLADE', day: 'THURSDAY', time: '20:30 - 21:45', artist: 'ROSS FROM FRIENDS PRESENTS: BUBBLE LOVE', genre: 'House', tags: ['house'] },
+    { stage: 'GLADE', day: 'THURSDAY', time: '19:30 - 20:30', artist: 'LAUREN LO SUNG', genre: 'Tech House, House', tags: ['house'] },
+    { stage: 'GLADE', day: 'THURSDAY', time: '18:15 - 19:30', artist: 'MARSHALL JEFFERSON', genre: 'House, Acid House, Deep House', tags: ['house', 'rave', 'pioneer'] },
+    { stage: 'GLADE', day: 'THURSDAY', time: '17:15 - 18:15', artist: 'MJ COLE PRESENTS: SINCERE', genre: 'UK Garage', tags: ['ukg', 'pioneer'] },
+    { stage: 'GLADE', day: 'FRIDAY', time: '01:45 - 02:55', artist: 'DAMIAN LAZARUS', genre: 'House, Breakbeat, Deep House', tags: ['house'] },
+    { stage: 'GLADE', day: 'FRIDAY', time: '00:30 - 01:45', artist: 'SETH TROXLER', genre: 'House, Tech House, Deep House, Techno, Minimal', tags: ['house'] },
+    { stage: 'GLADE', day: 'FRIDAY', time: '23:15 - 00:30', artist: 'SKEPTA B2B MOCHAKK B2B CARLITA', genre: 'Grime, Tech House, House, Techno', tags: ['house', 'b2b'] },
+    { stage: 'GLADE', day: 'FRIDAY', time: '22:10 - 23:10', artist: 'SHYGIRL PRESENTS: CLUB SHY', genre: 'Experimental Pop, Dance, Hip Hop, Electronic, Grime', tags: ['house'] },
+    { stage: 'GLADE', day: 'FRIDAY', time: '20:45 - 22:00', artist: 'KETTAMA B2B INTERPLANETARY CRIMINAL', genre: 'House, Speed Garage, Rave, UK Garage, Techno', tags: ['house', 'ukg', 'rave', 'b2b', 'hard'] },
+    { stage: 'GLADE', day: 'FRIDAY', time: '19:30 - 20:45', artist: 'DANIEL AVERY B2B IMOGEN', genre: 'House, Techno, Hard House', tags: ['house', 'rave', 'hard', 'b2b'] },
+    { stage: 'GLADE', day: 'FRIDAY', time: '18:30 - 19:30', artist: 'FISH56OCTOGAN', genre: 'House, Techno, Trance', tags: ['house', 'rave'] },
+    { stage: 'GLADE', day: 'FRIDAY', time: '17:45 - 18:25', artist: 'K KLASS', genre: 'House', tags: ['house'] },
+    { stage: 'GLADE', day: 'FRIDAY', time: '14:25 - 17:25', artist: 'CARL COX & ERIC POWELL\'S MOBILE DISCO FEAT JULIE MCKNIGHT', genre: 'House, Techno, Disco', tags: ['house', 'pioneer'] },
+    { stage: 'GLADE', day: 'FRIDAY', time: '13:10 - 14:10', artist: 'CRAZY P (DJ)', genre: 'Disco, House, Electronic', tags: ['house'] },
+    { stage: 'GLADE', day: 'FRIDAY', time: '12:00 - 13:00', artist: 'BEL COBAIN', genre: 'Soul, Jazz, Electronic', tags: ['house'] },
+    { stage: 'GLADE', day: 'SATURDAY', time: '01:30 - 02:55', artist: 'AMELIE LENS', genre: 'Techno, Dance, Electronic', tags: ['house', 'rave', 'hard'] },
+    { stage: 'GLADE', day: 'SATURDAY', time: '00:00 - 01:30', artist: 'RICHIE HAWTIN', genre: 'Techno, Electro House, Minimal', tags: ['rave', 'hard'] },
+    { stage: 'GLADE', day: 'SATURDAY', time: '22:30 - 23:45', artist: 'LEFTFIELD', genre: 'Drum & Bass, Electronica, House, Techno', tags: ['dnb', 'house', 'rave', 'pioneer'] },
+    { stage: 'GLADE', day: 'SATURDAY', time: '20:30 - 22:00', artist: 'MAX COOPER (LIVE A/V)', genre: 'Techno, House, Electronic', tags: ['house', 'rave', 'live'] },
+    { stage: 'GLADE', day: 'SATURDAY', time: '18:55 - 20:10', artist: 'ANNIE MAC', genre: 'Electronic, House', tags: ['house'] },
+    { stage: 'GLADE', day: 'SATURDAY', time: '17:40 - 18:55', artist: 'NABIHAH IQBAL (DJ)', genre: 'Indie, Alternative, Cold Wave, Electronic', tags: ['house'] },
+    { stage: 'GLADE', day: 'SATURDAY', time: '16:30 - 17:30', artist: 'DELE SOSEMI AFROBEAT EXPERIENCE', genre: 'Afrobeat, Jazz-Funk', tags: ['house'] },
+    { stage: 'GLADE', day: 'SATURDAY', time: '13:30 - 14:30', artist: 'ELECTRIC JALABA', genre: 'Electronic, African', tags: ['house'] },
+    { stage: 'GLADE', day: 'SATURDAY', time: '12:00 - 13:00', artist: 'CHANNEL ONE SOUND SYSTEM', genre: 'Reggae, Dub', tags: ['dnb'] },
+    { stage: 'GLADE', day: 'SUNDAY', time: '00:30 - 02:00', artist: 'SHERELLE', genre: 'Jungle, Drum and Bass, Footwork, Juke, Rave', tags: ['dnb', 'rave'] },
+    { stage: 'GLADE', day: 'SUNDAY', time: '23:15 - 00:15', artist: 'GOLDIE (LIVE)', genre: 'Drum and Bass, Jungle', tags: ['dnb', 'pioneer', 'live'] },
+    { stage: 'GLADE', day: 'SUNDAY', time: '21:45 - 22:45', artist: 'A GUY CALLED GERALD + THE JUNGLE DRUMMER (LIVE)', genre: 'Acid House, Jungle, Techno', tags: ['rave', 'dnb', 'pioneer', 'live'] },
+    { stage: 'GLADE', day: 'SUNDAY', time: '20:15 - 21:15', artist: 'DEEP DISH', genre: 'Electronic, House, Pop', tags: ['house'] },
+    { stage: 'GLADE', day: 'SUNDAY', time: '19:15 - 20:15', artist: 'THE ORB', genre: 'Ambient House, Dub, Techno, Electronica, Drum and Bass', tags: ['house', 'dnb', 'rave'] },
+    { stage: 'GLADE', day: 'SUNDAY', time: '15:00 - 16:00', artist: 'K.O.G', genre: 'Afrobeat, Reggae, Dancehall', tags: ['house'] },
+    { stage: 'GLADE', day: 'SUNDAY', time: '13:15 - 14:30', artist: 'CHANNEL ONE SOUND SYSTEM', genre: 'Reggae, Dub', tags: ['dnb'] },
+    { stage: 'GLADE', day: 'SUNDAY', time: '12:00 - 13:15', artist: 'DON LETTS DJ SET', genre: 'Reggae, Dub, Punk, Electronic', tags: ['house'] },
+    { stage: 'LEVELS', day: 'THURSDAY', time: '01:00 - 03:00', artist: 'ADIEL', genre: 'Techno, Tribal', tags: ['rave', 'hard'] },
+    { stage: 'LEVELS', day: 'THURSDAY', time: '23:30 - 01:00', artist: 'MARIE DAVIDSON', genre: 'Techno, Electro, New Wave, Italo Disco', tags: ['house', 'rave'] },
+    { stage: 'LEVELS', day: 'THURSDAY', time: '23:00 - 23:30', artist: 'PINKPANTHERESS', genre: 'Alt-Pop, Drum and Bass, 2-step Garage, UKG', tags: ['ukg', 'dnb'] },
+    { stage: 'LEVELS', day: 'THURSDAY', time: '21:00 - 23:00', artist: 'CONFIDENCE MAN (DJ) B2B JOB JOBSE', genre: 'Electropop, House, Disco', tags: ['house', 'b2b'] },
+    { stage: 'LEVELS', day: 'THURSDAY', time: '19:30 - 21:00', artist: 'PALMS TRAX', genre: 'House, Disco', tags: ['house'] },
+    { stage: 'LEVELS', day: 'THURSDAY', time: '18:00 - 19:30', artist: 'PEACH B2B CLUB FITNESS', genre: 'Tech House, Proto House, Bleep, Ambient Techno', tags: ['house', 'b2b'] },
+    { stage: 'LEVELS', day: 'FRIDAY', time: '01:45 - 03:00', artist: 'CALIBRE', genre: 'Drum and Bass, Liquid Funk, Downtempo', tags: ['dnb'] },
+    { stage: 'LEVELS', day: 'FRIDAY', time: '00:15 - 01:45', artist: 'GOLDIE B2B SPECIAL REQUEST', genre: 'Drum and Bass, Techno, House, Club', tags: ['dnb', 'house', 'rave', 'pioneer', 'b2b'] },
+    { stage: 'LEVELS', day: 'FRIDAY', time: '23:00 - 00:15', artist: 'LTJ BUKEM', genre: 'Drum and Bass, Jungle, Liquid Funk', tags: ['dnb', 'pioneer'] },
+    { stage: 'LEVELS', day: 'FRIDAY', time: '21:45 - 23:00', artist: 'LENS W/ DREAD MC', genre: 'Drum and Bass', tags: ['dnb'] },
+    { stage: 'LEVELS', day: 'FRIDAY', time: '20:30 - 21:45', artist: 'NOTION', genre: 'UK Garage, Bass, Breaks, Drum and Bass', tags: ['ukg', 'dnb'] },
+    { stage: 'LEVELS', day: 'FRIDAY', time: '19:15 - 20:30', artist: 'CONDUCTA', genre: 'UK Garage, Future Garage', tags: ['ukg'] },
+    { stage: 'LEVELS', day: 'FRIDAY', time: '17:45 - 19:15', artist: 'OPPIDAN B2B SICARIA', genre: 'UK Garage, Bass, Dubstep', tags: ['ukg', 'b2b'] },
+    { stage: 'LEVELS', day: 'FRIDAY', time: '16:35 - 17:45', artist: 'ARTHI', genre: 'UK Funky, Garage, Bass, Dancehall, Reggaeton, Afrobeats', tags: ['ukg', 'house'] },
+    { stage: 'LEVELS', day: 'FRIDAY', time: '15:00 - 16:15', artist: 'DJ EZ', genre: 'UK Garage, House', tags: ['ukg', 'house', 'pioneer'] },
+    { stage: 'LEVELS', day: 'FRIDAY', time: '13:30 - 15:00', artist: 'G33', genre: 'UK Garage, Grime, Afro Beats, Baile, Dancehall', tags: ['ukg', 'house'] },
+    { stage: 'LEVELS', day: 'FRIDAY', time: '12:00 - 13:30', artist: 'BAD B!TCH DUBZ', genre: 'Hard House, Garage, Techno, Breaks, Jungle', tags: ['hard', 'ukg', 'rave', 'dnb'] },
+    { stage: 'LEVELS', day: 'SATURDAY', time: '01:15 - 03:00', artist: 'JYOTY', genre: 'UK Funky, Baile Funk, Garage, Amapiano, Bass, Club', tags: ['ukg', 'house'] },
+    { stage: 'LEVELS', day: 'SATURDAY', time: '00:00 - 01:15', artist: 'SKREAM & BENGA W/ SGT POKES', genre: 'Dubstep, Electronica, Grime, Bass', tags: ['ukg', 'pioneer'] },
+    { stage: 'LEVELS', day: 'SATURDAY', time: '22:30 - 00:00', artist: 'MODESELEKTOR (DJ)', genre: 'Electronic, Big Bass Techno, Acid Rap, Psychedelic Electro', tags: ['rave', 'hard'] },
+    { stage: 'LEVELS', day: 'SATURDAY', time: '21:00 - 22:30', artist: 'EROL ALKAN B2B EWAN MCVICAR', genre: 'Alternative Rock, Electronic, House, Detroit Techno', tags: ['house', 'b2b'] },
+    { stage: 'LEVELS', day: 'SATURDAY', time: '19:30 - 21:00', artist: 'HAAI B2B ROMY', genre: 'Techno, Electronic Pop, House', tags: ['house', 'rave', 'b2b'] },
+    { stage: 'LEVELS', day: 'SATURDAY', time: '18:00 - 19:30', artist: 'CHAOS IN THE CBD', genre: 'House, Deep House, Jazz-House, Ambient Techno', tags: ['house'] },
+    { stage: 'LEVELS', day: 'SATURDAY', time: '16:30 - 18:00', artist: 'BERLIOZ', genre: 'Jazz, Downtempo House, Classical', tags: ['house'] },
+    { stage: 'LEVELS', day: 'SATURDAY', time: '15:00 - 16:30', artist: 'JUNGLE (DJ)', genre: 'Soul, Disco, Funk, Electronic', tags: ['house'] },
+    { stage: 'LEVELS', day: 'SATURDAY', time: '13:30 - 15:00', artist: 'DJ PAULETTE', genre: 'House, Electro House, Fidget House, Progressive House', tags: ['house'] },
+    { stage: 'LEVELS', day: 'SATURDAY', time: '12:00 - 13:30', artist: 'ELLA KNIGHT', genre: 'House, Garage, Disco', tags: ['house', 'ukg'] },
+    { stage: 'LEVELS', day: 'SUNDAY', time: '01:00 - 02:30', artist: 'GROOVE ARMADA', genre: 'House, Electronic, Disco', tags: ['house'] },
+    { stage: 'LEVELS', day: 'SUNDAY', time: '23:30 - 01:00', artist: 'SETH TROXLER', genre: 'House, Tech House, Deep House, Techno, Minimal', tags: ['house'] },
+    { stage: 'LEVELS', day: 'SUNDAY', time: '22:00 - 23:30', artist: 'JOSH BAKER', genre: 'Minimal, Deep House, Tech House, 90s Rave', tags: ['house', 'rave'] },
+    { stage: 'LEVELS', day: 'SUNDAY', time: '20:30 - 22:00', artist: 'PAWSA', genre: 'Tech House', tags: ['house'] },
+    { stage: 'LEVELS', day: 'SUNDAY', time: '19:00 - 20:30', artist: 'CHLOE CAILLET', genre: 'Electro, Dance, House', tags: ['house'] },
+    { stage: 'LEVELS', day: 'SUNDAY', time: '17:30 - 19:00', artist: 'ADRIATIQUE B2B CARLITA', genre: 'Tech House, Techno, House', tags: ['house', 'b2b'] },
+    { stage: 'LEVELS', day: 'SUNDAY', time: '16:00 - 17:30', artist: 'KILIMANJARO B2B TSHA', genre: 'Afro House, Amapiano, House, UK Garage, Rave', tags: ['house', 'ukg', 'rave', 'b2b'] },
+    { stage: 'LEVELS', day: 'SUNDAY', time: '14:45 - 16:00', artist: 'JAZZY', genre: 'Techno, House', tags: ['house', 'rave'] },
+    { stage: 'LEVELS', day: 'SUNDAY', time: '13:15 - 14:45', artist: 'RIO TASHAN', genre: 'House, Drum and Bass', tags: ['house', 'dnb'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'THURSDAY', time: '01:30 - 03:00', artist: 'BAMBII B2B JARREAU VANDAL', genre: 'Electronic, House, R&B, Dancehall, Reggae, Electro', tags: ['house', 'b2b'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'THURSDAY', time: '00:00 - 01:30', artist: 'P-RALLEL B2B ZACK FOX', genre: 'Drum and Bass, Garage, House, UK Bass', tags: ['dnb', 'ukg', 'house', 'b2b'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'THURSDAY', time: '22:30 - 00:00', artist: 'NOORIYAH', genre: 'House', tags: ['house'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'THURSDAY', time: '21:00 - 22:30', artist: 'MAJOR LEAGUE DJZ', genre: 'Afro House', tags: ['house'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'THURSDAY', time: '19:30 - 21:00', artist: 'CHANGING CURRENTS B2B FS GREEN', genre: 'Hip Hop, Electronic, Afrobeat, Dancehall, House', tags: ['house', 'b2b'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'THURSDAY', time: '18:00 - 19:30', artist: 'HITECH', genre: 'Electronic, Techno, Trance, Drum and Bass', tags: ['rave', 'dnb', 'hard'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'FRIDAY', time: '01:30 - 03:00', artist: 'AMELIE LENS', genre: 'Techno, Dance, Electronic', tags: ['house', 'rave', 'hard'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'FRIDAY', time: '00:00 - 01:30', artist: 'CAMELPHAT', genre: 'House, Tech House, Happy Hardcore (early alias)', tags: ['house', 'hard', 'rave'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'FRIDAY', time: '22:30 - 00:00', artist: 'FATBOY SLIM', genre: 'Big Beat, Electronic, Acid House, Trip Hop, Nu-Funk', tags: ['rave', 'house', 'pioneer'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'FRIDAY', time: '21:00 - 22:30', artist: 'VINTAGE CULTURE', genre: 'House, Tech House', tags: ['house'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'FRIDAY', time: '20:00 - 21:00', artist: 'RUDIM3NTAL', genre: 'Drum and Bass, Electronic, House', tags: ['dnb', 'house'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'FRIDAY', time: '19:00 - 19:45', artist: 'BASHY', genre: 'Hip Hop, British Hip Hop, Grime', tags: ['ukg'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'FRIDAY', time: '15:00 - 16:00', artist: 'BRICKNASTY', genre: 'Neo-Soul, R&B, Hip Hop, Rave, 90s Garage', tags: ['ukg', 'rave'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'FRIDAY', time: '14:00 - 14:30', artist: 'RUBII', genre: 'Progressive House, Dance Music', tags: ['house', 'hard'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SATURDAY', time: '01:45 - 03:00', artist: 'MOZEY', genre: 'Drum and Bass', tags: ['dnb'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SATURDAY', time: '00:15 - 01:45', artist: 'HYBRID MINDS', genre: 'Drum and Bass', tags: ['dnb'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SATURDAY', time: '23:00 - 00:15', artist: 'KOVEN', genre: 'Drum and Bass, Electronic, Punk, Metal, Industrial', tags: ['dnb'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SATURDAY', time: '21:45 - 22:45', artist: '4 AM KRU', genre: '90s Rave, Jungle, Electronic', tags: ['rave', 'dnb', 'live'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SATURDAY', time: '20:30 - 21:30', artist: 'A.G. COOK', genre: 'Electronic Pop, Hyperpop, Experimental', tags: ['ukg'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SATURDAY', time: '19:30 - 20:30', artist: 'BIIG PIIG', genre: 'Modern Pop, Hip Hop, R&B, Dance Music, 90s Garage', tags: ['ukg'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SATURDAY', time: '18:00 - 19:00', artist: 'FRANKIE STEW & HARVEY GUNN', genre: 'Hip Hop, Garage, Electronic Dance Music', tags: ['ukg'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SATURDAY', time: '15:00 - 16:00', artist: 'LUVCAT', genre: 'Rock & Indie, Jazz, Romantic Rock', tags: [] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SATURDAY', time: '13:30 - 14:30', artist: 'HUMBLE THE GREAT', genre: 'R&B, Indie-Folk, Electronic', tags: [] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SATURDAY', time: '12:00 - 13:00', artist: 'NAT OAKS', genre: 'Hip Hop, Alternative Pop, Soulful', tags: [] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SUNDAY', time: '01:00 - 02:30', artist: 'AZYR', genre: 'Techno, Acid, Schranz, Rave, Hard Dance, Psytrance', tags: ['rave', 'hard'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SUNDAY', time: '23:30 - 01:00', artist: 'SIM0NE', genre: 'Techno', tags: ['rave'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SUNDAY', time: '22:00 - 23:30', artist: 'FASTER HORSES B2B MORGAN SEATREE', genre: 'Techno, House, Trance', tags: ['rave', 'house', 'hard', 'b2b'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SUNDAY', time: '20:30 - 22:00', artist: 'ELI BROWN', genre: 'Techno, House, Drum & Bass, Jungle', tags: ['house', 'rave', 'dnb', 'hard'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SUNDAY', time: '19:45 - 20:20', artist: 'FOR THOSE I LOVE', genre: 'Electronic, Soul-Infused Electronica', tags: ['house'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SUNDAY', time: '18:30 - 19:30', artist: 'EMMA-JEAN THACKRAY', genre: 'Jazz, Nu Jazz, House, Soul', tags: ['house'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SUNDAY', time: '17:00 - 18:00', artist: 'SNAPPED ANKLES', genre: 'Post-Punk, Krautrock, Electronic', tags: [] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SUNDAY', time: '15:30 - 16:30', artist: 'MERMAID CHUNKY', genre: 'Leftfield Disco, Experimental Electronic, Folk, Jazz', tags: ['house'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SUNDAY', time: '14:00 - 15:00', artist: 'GARDNA: TIME TO MOVE', genre: 'Dub, Dancehall, Grime, Garage, Dubstep, House, Techno', tags: ['ukg', 'house'] },
+    { stage: 'LONELY HEARTS CLUB', day: 'SUNDAY', time: '12:00 - 14:00', artist: 'MUNGOS HI-FI FT EVA LAZARUS & AZIZA JAYE', genre: 'Dub, Reggae, Dancehall', tags: ['dnb'] },
+    { stage: 'ASSEMBLY', day: 'THURSDAY', time: '01:30 - 03:00', artist: 'RADIOACTIVE MAN (DJ)', genre: 'Electro, Techno', tags: ['rave'] },
+    { stage: 'ASSEMBLY', day: 'THURSDAY', time: '00:00 - 01:30', artist: 'ROZA TERENZI', genre: 'Techno, House', tags: ['house', 'rave'] },
+    { stage: 'ASSEMBLY', day: 'THURSDAY', time: '22:30 - 00:00', artist: 'PAULA TAPE B2B MAKE A DANCE', genre: 'House, Disco', tags: ['house', 'b2b'] },
+    { stage: 'ASSEMBLY', day: 'THURSDAY', time: '21:00 - 22:30', artist: 'OPAL SUNN', genre: 'House, Techno', tags: ['house', 'rave'] },
+    { stage: 'ASSEMBLY', day: 'THURSDAY', time: '18:00 - 19:30', artist: 'CRAZY P (DJ)', genre: 'Disco, House, Electronic', tags: ['house'] },
+    { stage: 'ASSEMBLY', day: 'FRIDAY', time: '01:00 - 03:00', artist: 'CRAIG RICHARDS', genre: 'House, Techno', tags: ['house', 'rave'] },
+    { stage: 'ASSEMBLY', day: 'FRIDAY', time: '23:30 - 01:00', artist: 'IVAN SMAGGHE B2B DAVE HARVEY', genre: 'Electro, House, Techno', tags: ['house', 'rave', 'b2b'] },
+    { stage: 'ASSEMBLY', day: 'FRIDAY', time: '21:30 - 23:30', artist: 'BINH B2B DJ MASDA', genre: 'Minimal House, Minimal Techno', tags: ['house', 'rave'] },
+    { stage: 'ASSEMBLY', day: 'FRIDAY', time: '18:30 - 20:00', artist: 'SEDEF ADASİ', genre: 'House, Techno', tags: ['house', 'rave'] },
+    { stage: 'ASSEMBLY', day: 'FRIDAY', time: '17:00 - 18:30', artist: 'SPRAY', genre: 'House, Techno', tags: ['house', 'rave'] },
+    { stage: 'ASSEMBLY', day: 'FRIDAY', time: '15:30 - 17:00', artist: 'A FOR ALPHA B2B PAPA NUGS', genre: 'Bass, UKG, Techno', tags: ['ukg', 'rave', 'b2b'] },
+    { stage: 'ASSEMBLY', day: 'FRIDAY', time: '14:00 - 15:30', artist: 'JEROME HILL', genre: 'Techno, Acid, Electro', tags: ['rave'] },
+    { stage: 'ASSEMBLY', day: 'SATURDAY', time: '01:30 - 03:00', artist: 'ENZO SIRAGUSA B2B WILLOW', genre: 'Minimal House, Techno', tags: ['house', 'rave', 'b2b'] },
+    { stage: 'ASSEMBLY', day: 'SATURDAY', time: '00:00 - 01:30', artist: 'MOXIE', genre: 'House, Techno, Electro', tags: ['house', 'rave'] },
+    { stage: 'ASSEMBLY', day: 'SATURDAY', time: '22:00 - 00:00', artist: 'DR BANANA B2B MELODY', genre: 'UK Garage, House, Techno', tags: ['ukg', 'house', 'rave', 'b2b'] },
+    { stage: 'ASSEMBLY', day: 'SATURDAY', time: '20:00 - 22:00', artist: 'HAMISH & TOBY', genre: 'House, Disco', tags: ['house'] },
+    { stage: 'ASSEMBLY', day: 'SATURDAY', time: '18:00 - 20:00', artist: 'CALL SUPER B2B SHANTI CELESTE', genre: 'House, Techno, Electro', tags: ['house', 'rave', 'b2b'] },
+    { stage: 'ASSEMBLY', day: 'SATURDAY', time: '16:00 - 18:00', artist: 'AMALIAH B2B PEARSON SOUND', genre: 'House, Techno, UKG', tags: ['house', 'ukg', 'rave', 'b2b'] },
+    { stage: 'ASSEMBLY', day: 'SATURDAY', time: '14:00 - 16:00', artist: 'CCL', genre: 'Electronic, House, Techno, Dub-core, Breaks', tags: ['house', 'rave', 'dnb'] },
+    { stage: 'ASSEMBLY', day: 'SATURDAY', time: '12:00 - 14:00', artist: 'PARRIS B2B SURUSINGHE', genre: 'Electronic, Bass, Techno', tags: ['rave'] },
+    { stage: 'ASSEMBLY', day: 'SUNDAY', time: '01:00 - 02:30', artist: 'VERRACO', genre: 'Techno', tags: ['rave'] },
+    { stage: 'ASSEMBLY', day: 'SUNDAY', time: '23:30 - 01:00', artist: 'HODGE B2B PLOY', genre: 'Techno, Bass, UK Funky', tags: ['ukg', 'rave', 'b2b'] },
+    { stage: 'ASSEMBLY', day: 'SUNDAY', time: '22:00 - 23:30', artist: 'LUCA LOZANO', genre: 'House, Techno', tags: ['house', 'rave'] },
+    { stage: 'ASSEMBLY', day: 'SUNDAY', time: '20:00 - 22:00', artist: 'LUKAS WIGFLEX B2B DAISY MOON', genre: 'House, Techno, Garage', tags: ['ukg', 'house', 'rave', 'b2b'] },
+    { stage: 'ASSEMBLY', day: 'SUNDAY', time: '18:30 - 20:00', artist: 'ANZ', genre: 'UKG, Breakbeat, Electro', tags: ['ukg', 'rave'] },
+    { stage: 'ASSEMBLY', day: 'SUNDAY', time: '17:00 - 18:30', artist: 'OK WILLIAMS', genre: 'Electronic, House, Techno', tags: ['house', 'rave'] },
+    { stage: 'ASSEMBLY', day: 'SUNDAY', time: '15:00 - 17:00', artist: 'NIKS B2B ALETHA', genre: 'House, Techno', tags: ['house', 'rave', 'b2b'] },
+    { stage: 'FIRMLY ROOTED', day: 'THURSDAY', time: '23:00 - 00:00', artist: 'DJ COSWORTH B2B LA LA', genre: 'Electronic, House, Techno', tags: ['house', 'rave', 'b2b'] },
+    { stage: 'FIRMLY ROOTED', day: 'THURSDAY', time: '22:00 - 23:00', artist: 'YEMZ', genre: 'Electronic', tags: [] },
+    { stage: 'FIRMLY ROOTED', day: 'THURSDAY', time: '21:00 - 22:00', artist: 'YUNG SINGH', genre: 'UKG, Bass, Grime', tags: ['ukg'] },
+    { stage: 'FIRMLY ROOTED', day: 'THURSDAY', time: '20:00 - 21:00', artist: 'RIRIA', genre: 'Electronic', tags: [] },
+    { stage: 'FIRMLY ROOTED', day: 'THURSDAY', time: '19:00 - 20:00', artist: 'DUAL MONITOR', genre: 'Electronic', tags: [] },
+    { stage: 'FIRMLY ROOTED', day: 'THURSDAY', time: '18:00 - 19:00', artist: 'MIA KODEN', genre: 'Electronic', tags: [] },
+    { stage: 'FIRMLY ROOTED', day: 'FRIDAY', time: '22:30 - 00:00', artist: 'BAKEY B2B SAM BINGA', genre: 'UKG, Bass, Drum and Bass', tags: ['ukg', 'dnb', 'b2b'] },
+    { stage: 'FIRMLY ROOTED', day: 'FRIDAY', time: '21:00 - 22:30', artist: 'BIANCA OBLIVION B2B MANAMI', genre: 'Electronic, House, Techno', tags: ['house', 'rave', 'b2b'] },
+    { stage: 'FIRMLY ROOTED', day: '19:30 - 21:00', time: 'AMY KISNORBO B2B MJK', artist: 'Electronic, House, Techno', genre: '', tags: ['house', 'rave', 'b2b'] },
+    { stage: 'FIRMLY ROOTED', day: 'FRIDAY', time: '18:00 - 19:30', artist: 'OBLIG B2B SIR HISS', genre: 'Grime, Dubstep, Bass', tags: ['ukg', 'b2b'] },
+    { stage: 'FIRMLY ROOTED', day: 'FRIDAY', time: '16:00 - 18:00', artist: 'CHANNEL ONE', genre: 'Reggae, Dub', tags: ['dnb'] },
+    { stage: 'FIRMLY ROOTED', day: 'FRIDAY', time: '15:00 - 16:00', artist: 'DUBKASM', genre: 'Dub, Reggae', tags: ['dnb'] },
+    { stage: 'FIRMLY ROOTED', day: 'FRIDAY', time: '14:00 - 15:00', artist: 'RSD', genre: 'Dubstep, Dub', tags: ['dnb'] },
+    { stage: 'FIRMLY ROOTED', day: 'FRIDAY', time: '12:00 - 14:00', artist: 'SWEETIE', genre: 'Dub, Reggae', tags: ['dnb'] },
+    { stage: 'FIRMLY ROOTED', day: 'SATURDAY', time: '23:00 - 00:30', artist: 'NAINA B2B REA B2B SKEPTIC', genre: 'Electronic, Bass, UKG', tags: ['ukg', 'b2b'] },
+    { stage: 'FIRMLY ROOTED', day: 'SATURDAY', time: '21:30 - 23:00', artist: 'KIZZI B2B MANARA B2B RAJI RAGS', genre: 'Electronic, Bass, UKG', tags: ['ukg', 'b2b'] },
+    { stage: 'FIRMLY ROOTED', day: 'SATURDAY', time: '20:00 - 21:30', artist: 'DARAMA B2B MAHNOOR B2B NADĪ', genre: 'Electronic, Bass', tags: ['b2b'] },
+    { stage: 'FIRMLY ROOTED', day: 'SATURDAY', time: '18:30 - 20:00', artist: 'ANIL B2B SUCHI B2B VNEE', genre: 'Electronic, House, Techno', tags: ['house', 'rave', 'b2b'] },
+    { stage: 'FIRMLY ROOTED', day: 'SATURDAY', time: '17:00 - 18:30', artist: 'DJ DIE: TOO LATE TO TURNBACK [1990 - 2025]', genre: 'Drum and Bass, Jungle', tags: ['dnb', 'pioneer'] },
+    { stage: 'FIRMLY ROOTED', day: 'SATURDAY', time: '16:00 - 17:00', artist: 'SMITH & MIGHTY', genre: 'Trip Hop, Dub, Electronic', tags: ['dnb'] },
+    { stage: 'FIRMLY ROOTED', day: 'SATURDAY', time: '15:00 - 16:00', artist: 'GROVE (DJ SET)', genre: 'Electronic, Dancehall, Grime', tags: ['ukg'] },
+    { stage: 'FIRMLY ROOTED', day: 'SATURDAY', time: '14:00 - 15:00', artist: 'DJ MILO (THE WILD BUNCH)', genre: 'Trip Hop, Hip Hop, Electronic', tags: ['dnb'] },
+    { stage: 'FIRMLY ROOTED', day: 'SATURDAY', time: '13:00 - 14:00', artist: 'DANCEHALL GENERALS', genre: 'Dancehall, Reggae', tags: ['dnb'] },
+    { stage: 'FIRMLY ROOTED', day: 'SUNDAY', time: '23:00 - 00:00', artist: 'RIZ LA TEEF', genre: 'UKG, Bass, Grime', tags: ['ukg'] },
+    { stage: 'FIRMLY ROOTED', day: 'SUNDAY', time: '21:00 - 22:00', artist: 'NABIHAH IQBAL B2B HASEEB IQBAL', genre: 'Electronic, Indie', tags: ['house', 'b2b'] },
+    { stage: 'FIRMLY ROOTED', day: 'SUNDAY', time: '20:00 - 21:00', artist: 'DON LETTS', genre: 'Reggae, Dub, Punk, Electronic', tags: ['house'] },
+    { stage: 'FIRMLY ROOTED', day: 'SUNDAY', time: '19:00 - 20:00', artist: 'BRADLEY ZERO', genre: 'House, Disco, Jazz, Funk', tags: ['house'] },
+    { stage: 'FIRMLY ROOTED', day: 'SUNDAY', time: '18:00 - 19:00', artist: 'SHERELLE', genre: 'Jungle, Drum and Bass, Footwork, Juke, Rave', tags: ['dnb', 'rave'] },
+    { stage: 'FIRMLY ROOTED', day: 'SUNDAY', time: '17:00 - 18:00', artist: 'NEFFA-T B2B PLASTICIAN (140 SET)', genre: 'Dubstep, Grime, Bass', tags: ['ukg', 'b2b'] },
+    { stage: 'FIRMLY ROOTED', day: 'SUNDAY', time: '16:00 - 17:00', artist: 'NUMA CREW', genre: 'Dubstep, Grime, Bass', tags: ['ukg'] },
+    { stage: 'FIRMLY ROOTED', day: 'SUNDAY', time: '15:00 - 16:00', artist: 'PANIX FT LIONPULSE', genre: 'Dub, Reggae, Bass', tags: ['dnb'] },
+    { stage: 'FIRMLY ROOTED', day: 'SUNDAY', time: '13:00 - 15:00', artist: 'VIXEN SOUND', genre: 'Dub, Reggae, Dancehall', tags: ['dnb'] },
+    { stage: 'STONEBRIDGE BAR', day: 'THURSDAY', time: '22:00 - 03:00', artist: 'A TRIBUTE TO DJ RANDALL W/ BENNY L, BREAK, COOL HAND FLEX, DJ DIE, DJ STORM, DLR, INJA, KENNY KEN, MICKY FINN, RIO TASHAN', genre: 'Drum and Bass, Jungle', tags: ['dnb', 'pioneer'] },
+    { stage: 'STONEBRIDGE BAR', day: 'THURSDAY', time: '18:30 - 22:00', artist: 'ROS ATKINS\' RAVE MACHINE', genre: 'Rave, Electronic', tags: ['rave'] },
+    { stage: 'STONEBRIDGE BAR', day: 'FRIDAY', time: '03:45 - 05:00', artist: 'HOT CHIP DJS (JOE GODDARD + ALEXIS TAYLOR)', genre: 'Indie Electronic, House, Disco', tags: ['house'] },
+    { stage: 'STONEBRIDGE BAR', day: 'FRIDAY', time: '00:15 - 01:30', artist: 'EROL ALKAN B2B FALL FORWARD (BUGGED OUT CLASSICS SET)', genre: 'Alternative Rock, Electronic, House, Techno', tags: ['house', 'rave', 'b2b'] },
+    { stage: 'STONEBRIDGE BAR', day: 'FRIDAY', time: '21:00 - 22:45', artist: 'LUKE UNA', genre: 'Soul, Disco, House', tags: ['house'] },
+    { stage: 'STONEBRIDGE BAR', day: 'FRIDAY', time: '19:30 - 21:00', artist: 'MODESELEKTOR (REGGAE SET)', genre: 'Electronic, Reggae, Dub', tags: ['rave'] },
+    { stage: 'STONEBRIDGE BAR', day: 'FRIDAY', time: '18:30 - 19:30', artist: 'FCUKERS (DJ SET)', genre: 'Electronic, House, Trip Hop, Big Beat, Indie Rock', tags: ['house', 'rave'] },
+    { stage: 'STONEBRIDGE BAR', day: 'SATURDAY', time: '04:00 - 05:00', artist: 'KILIMANJARO', genre: 'Afro House, Amapiano, House', tags: ['house'] },
+    { stage: 'STONEBRIDGE BAR', day: 'SATURDAY', time: '02:00 - 03:00', artist: 'CONFIDENCE MAN DJ B2B DJ BORING', genre: 'Electropop, House, Lo-Fi House', tags: ['house', 'b2b'] },
+    { stage: 'STONEBRIDGE BAR', day: 'SATURDAY', time: '01:00 - 02:00', artist: 'CONFIDENCE MAN DJ', genre: 'Electropop, House', tags: ['house'] },
+    { stage: 'STONEBRIDGE BAR', day: 'SATURDAY', time: '00:00 - 01:00', artist: 'DJ SEINFELD', genre: 'Lo-Fi House', tags: ['house'] },
+    { stage: 'STONEBRIDGE BAR', day: 'SATURDAY', time: '23:00 - 00:00', artist: 'ELIZA ROSE B2B SPRAY', genre: 'House, UK Garage, Techno', tags: ['house', 'ukg', 'rave', 'b2b'] },
+    { stage: 'STONEBRIDGE BAR', day: 'SATURDAY', time: '20:00 - 21:00', artist: 'DEMI RIQUÍSIMO', genre: 'House, Disco', tags: ['house'] },
+    { stage: 'STONEBRIDGE BAR', day: 'SATURDAY', time: '15:00 - 20:00', artist: 'SOUND INTERNATIONAL TAKEOVER W/ IDRIS, JADEN THOMPSON, JAMMER, JEREMIAH ASIAMAH, JYOTY, DJ LAG, P-RALLEL, SELENA FAIDER, TOMMY GOLD, YUNG OMZ', genre: 'Electronic, House, UKG, Bass, Grime, Afrobeat', tags: ['house', 'ukg', 'rave', 'dnb'] },
+    { stage: 'STONEBRIDGE BAR', day: 'SATURDAY', time: '13:30 - 15:00', artist: 'GILLES PETERSON FT ROB GALLIANO', genre: 'Jazz, Funk, Soul, House, Electronic', tags: ['house'] },
+    { stage: 'STONEBRIDGE BAR', day: 'SUNDAY', time: '22:00 - 04:00', artist: 'RUPTURE WITH DJ FLIGHT, MANTRA, DOUBLE O, DECIBELLA + PANKA. HOSTED BY BLACKEYE, MC CHICKABOO + MAJOR RANKS', genre: 'Drum and Bass, Jungle', tags: ['dnb', 'pioneer'] },
+    { stage: 'STONEBRIDGE BAR', day: 'SUNDAY', time: '20:30 - 22:00', artist: 'I. JORDAN', genre: 'House, Techno, Rave', tags: ['house', 'rave'] },
+    { stage: 'STONEBRIDGE BAR', day: 'SUNDAY', time: '19:30 - 20:30', artist: 'PANJABI HIT SQUAD', genre: 'Bhangra, Hip Hop, Electronic', tags: [] },
+    { stage: 'STONEBRIDGE BAR', day: 'SUNDAY', time: '18:00 - 19:30', artist: 'AHADADREAM', genre: 'UK Funky, Afro House, Amapiano, Gqom', tags: ['house', 'ukg'] },
+    { stage: 'STONEBRIDGE BAR', day: 'SUNDAY', time: '16:30 - 18:00', artist: 'ELL MURPHY', genre: 'UKG, Bass, Electronic', tags: ['ukg'] },
+    { stage: 'STONEBRIDGE BAR', day: 'SUNDAY', time: '15:00 - 16:30', artist: 'GREG WILSON (50TH ANNIVERSARY SET)', genre: 'Disco, Funk, Electro, Re-Edits', tags: ['house', 'pioneer'] },
+    { stage: 'WISHING WELL', day: 'THURSDAY', time: '00:00 - 01:00', artist: 'LOVE LIFE DISCO', genre: 'Disco', tags: ['house'] },
+    { stage: 'WISHING WELL', day: 'THURSDAY', time: '23:00 - 00:00', artist: 'WOODY COOK', genre: 'Electronic, House', tags: ['house'] },
+    { stage: 'WISHING WELL', day: 'SATURDAY', time: '04:30 - 06:00', artist: 'DISCOLYPSO TAKEOVER: MAKE A DANCE', genre: 'Disco, House', tags: ['house'] },
+    { stage: 'WISHING WELL', day: 'SATURDAY', time: '03:00 - 04:30', artist: 'DISCOLYPSO TAKEOVER: DISCOLYPSO CREW', genre: 'Disco, House', tags: ['house'] },
+    { stage: 'WISHING WELL', day: 'SATURDAY', time: '01:30 - 03:00', artist: 'DISCOLYPSO TAKEOVER: ISAAC FERRY', genre: 'Disco, House', tags: ['house'] },
+    { stage: 'WISHING WELL', day: 'SATURDAY', time: '00:30 - 01:30', artist: 'DISCOLYPSO TAKEOVER: ALGY STRUTT', genre: 'Disco, House', tags: ['house'] },
+    { stage: 'WISHING WELL', day: 'SATURDAY', time: '22:30 - 00:30', artist: 'DISCOLYPSO TAKEOVER: CRAIG CHARLES', genre: 'Funk, Soul, Disco', tags: ['house'] },
+    { stage: 'SCISSORS', day: 'FRIDAY', time: '04:00 - 06:00', artist: 'QUEER HOUSE PARTY', genre: 'House, Electronic', tags: ['house'] },
+    { stage: 'SCISSORS', day: 'FRIDAY', time: '02:30 - 04:00', artist: 'DJ FART EATER B2B DJ STINKBOMB', genre: 'Electronic, Club', tags: ['b2b'] },
+    { stage: 'SCISSORS', day: 'FRIDAY', time: '01:30 - 02:30', artist: 'HEIDI LAWDEN', genre: 'House, Techno', tags: ['house', 'rave'] },
+    { stage: 'SCISSORS', day: 'FRIDAY', time: '21:00 - 22:30', artist: 'ACID SALLY X HAUTE MESS PARTY', genre: 'Acid House, Electronic', tags: ['rave'] },
+    { stage: 'SCISSORS', day: 'FRIDAY', time: '20:30 - 22:30', artist: 'BAD PAL LILI B2B THAT GIRL DEE', genre: 'Electronic, Club', tags: ['b2b'] },
+    { stage: 'SCISSORS', day: 'FRIDAY', time: '17:30 - 18:30', artist: 'WOODY COOK', genre: 'Electronic, House', tags: ['house'] },
+    { stage: 'SCISSORS', day: 'SUNDAY', time: '03:00 - 05:00', artist: 'PLASTYK (FEAT. LT+P)', genre: 'Electronic, Club', tags: [] },
+    { stage: 'SCISSORS', day: 'SUNDAY', time: '01:00 - 03:00', artist: 'DYKES ON DECKS', genre: 'House, Techno, Electronic', tags: ['house', 'rave'] },
+    { stage: 'SCISSORS', day: 'SUNDAY', time: '21:00 - 22:30', artist: 'BITCH PLEASE X SHADE CARTEL X BARBS', genre: 'House, Electronic', tags: ['house'] },
+    { stage: 'SCISSORS', day: 'SUNDAY', time: '19:00 - 21:00', artist: 'DRUM & BABES: RINSEOUT', genre: 'Drum and Bass, Jungle', tags: ['dnb'] },
+    { stage: 'GLADE DOME', day: 'THURSDAY', time: '00:30 - 02:00', artist: 'ELI BROWN', genre: 'Techno, House, Drum & Bass, Jungle', tags: ['house', 'rave', 'dnb', 'hard'] },
+    { stage: 'GLADE DOME', day: 'THURSDAY', time: '21:30 - 23:00', artist: 'CALIBRE', genre: 'Drum and Bass, Liquid Funk, Downtempo', tags: ['dnb'] },
+    { stage: 'GLADE DOME', day: 'THURSDAY', time: '20:00 - 21:30', artist: 'FABIO & GROOVERIDER', genre: 'Drum and Bass, Jungle', tags: ['dnb', 'pioneer'] },
+    { stage: 'GLADE DOME', day: 'THURSDAY', time: '19:00 - 20:00', artist: 'LSB + DRS PRESENT SPACE AGE', genre: 'Drum and Bass, Liquid Funk', tags: ['dnb'] },
+    { stage: 'GLADE DOME', day: 'THURSDAY', time: '18:15 - 19:00', artist: 'A LITTLE SOUND', genre: 'Drum and Bass, Vocal', tags: ['dnb'] },
+    { stage: 'GLADE DOME', day: 'THURSDAY', time: '17:30 - 18:15', artist: 'GRAY', genre: 'Drum and Bass, Bass', tags: ['dnb'] },
+    { stage: 'GLADE DOME', day: 'THURSDAY', time: '16:30 - 17:30', artist: 'CHARLIE TEE', genre: 'Drum and Bass', tags: ['dnb'] },
+    { stage: 'GLADE DOME', day: 'THURSDAY', time: '15:00 - 16:30', artist: 'PAPER DRAGON', genre: 'Electronic', tags: [] },
+    { stage: 'GLADE DOME', day: 'SUNDAY', time: '01:15 - 02:25', artist: 'TOMMY HOLOHAN', genre: 'Techno, Rave', tags: ['rave', 'hard'] },
+    { stage: 'GLADE DOME', day: 'SUNDAY', time: '23:45 - 01:15', artist: 'LEON VYNEHALL', genre: 'House, Techno, Ambient Techno', tags: ['house', 'rave'] },
+    { stage: 'GLADE DOME', day: 'SUNDAY', time: '22:15 - 23:45', artist: 'DJ BORING B2B DJ SEINFELD', genre: 'Lo-Fi House', tags: ['house', 'b2b'] },
+    { stage: 'GLADE DOME', day: 'SUNDAY', time: '20:45 - 22:15', artist: 'DAPHNI', genre: 'House, Electronic', tags: ['house'] },
+    { stage: 'GLADE DOME', day: 'SUNDAY', time: '19:15 - 20:45', artist: 'JAMZ SUPERNOVA B2B SHY ONE', genre: 'Electronic, House, Breakbeat, UKG', tags: ['house', 'ukg', 'b2b'] },
+    { stage: 'GLADE DOME', day: 'SUNDAY', time: '17:45 - 19:15', artist: 'IZCO FEAT LIAM BAILEY (LIVE)', genre: 'UKG, Electronic', tags: ['ukg', 'live'] },
+    { stage: 'GLADE DOME', day: 'SUNDAY', time: '16:15 - 17:45', artist: 'WILFY D', genre: 'UKG, Bass', tags: ['ukg'] },
+    { stage: 'BABYLON UPRISING', day: 'THURSDAY', time: '01:00 - 02:00', artist: 'RUKUS', genre: 'Bass, Grime, Dubstep', tags: ['ukg'] },
+    { stage: 'BABYLON UPRISING', day: 'THURSDAY', time: '00:00 - 01:00', artist: 'BULLET TOOTH', genre: 'Bass, Grime, Dubstep', tags: ['ukg'] },
+    { stage: 'BABYLON UPRISING', day: 'THURSDAY', time: '23:00 - 00:00', artist: 'SILVA SNIPA', genre: 'Bass, Grime, Dubstep', tags: ['ukg'] },
+    { stage: 'BABYLON UPRISING', day: 'THURSDAY', time: '22:00 - 23:00', artist: 'BAALTI', genre: 'Bass, Electronic', tags: [] },
+    { stage: 'BABYLON UPRISING', day: 'THURSDAY', time: '20:00 - 22:00', artist: 'AÆE B2B FONZO B2B MANAMI B2B PAPA NUGS', genre: 'Electronic, House, Techno', tags: ['house', 'rave', 'b2b'] },
+    { stage: 'BABYLON UPRISING', day: 'THURSDAY', time: '19:00 - 20:00', artist: 'SIR HISS B2B DUSTY DAN', genre: 'Grime, Bass', tags: ['ukg', 'b2b'] },
+    { stage: 'BABYLON UPRISING', day: 'THURSDAY', time: '18:00 - 19:00', artist: 'RUGGZ - VILLAGE CUTS TAKEOVER', genre: 'Electronic, Bass', tags: [] },
+    { stage: 'BABYLON UPRISING', day: 'THURSDAY', time: '17:00 - 18:00', artist: 'ARTHI - VILLAGE CUTS TAKEOVER', genre: 'UK Funky, Garage, Bass', tags: ['ukg', 'house'] },
+    { stage: 'BABYLON UPRISING', day: 'FRIDAY', time: '01:00 - 02:00', artist: 'LUKAS WIGFLEX (GARAGE SET)', genre: 'Garage, House, Techno', tags: ['ukg', 'house', 'rave'] },
+    { stage: 'BABYLON UPRISING', day: 'FRIDAY', time: '00:00 - 01:00', artist: 'ELLA KNIGHT', genre: 'House, Garage, Disco', tags: ['house', 'ukg'] },
+    { stage: 'BABYLON UPRISING', day: '21:00 - 22:00', time: 'SUCHI B2B NIKS - INTROSPECT TAKEOVER', artist: 'House, Techno', genre: '', tags: ['house', 'rave', 'b2b'] },
+    { stage: 'BABYLON UPRISING', day: '20:00 - 21:00', time: 'LESULA B2B RO-G1 - INTROSPECT TAKEOVER', artist: 'Electronic, House', genre: '', tags: ['house', 'b2b'] },
+    { stage: 'BABYLON UPRISING', day: 'FRIDAY', time: '17:00 - 19:00', artist: 'JEREMIAH ASIAMAH (LIVE)', genre: 'House, Electronic', tags: ['house', 'live'] },
+    { stage: 'BABYLON UPRISING', day: 'SATURDAY', time: '00:00 - 01:00', artist: 'NEFFA-T', genre: 'Dubstep, Grime, Bass', tags: ['ukg'] },
+    { stage: 'BABYLON UPRISING', day: '23:00 - 00:00', time: 'SHEBA Q', artist: 'Dubstep, Bass', genre: '', tags: ['ukg'] },
+    { stage: 'BABYLON UPRISING', day: '22:00 - 23:00', time: 'SAMURAI BREAKS - SSBB TAKEOVER', artist: 'Breakbeat, Bass, UKG', genre: '', tags: ['ukg', 'rave'] },
+    { stage: 'BABYLON UPRISING', day: '21:00 - 22:00', time: 'TOBY ROSS - SSBB TAKEOVER', artist: 'Bass, Electronic', genre: '', tags: [] },
+    { stage: 'BABYLON UPRISING', day: 'SATURDAY', time: '20:00 - 21:00', artist: 'ALTERN8 B2B UNCLE DUGS FT MC FIVE ALIVE', genre: 'Hardcore, Rave, Breakbeat', tags: ['rave', 'pioneer', 'b2b'] },
+    { stage: 'BABYLON UPRISING', day: 'SUNDAY', time: '17:00 - 18:00', artist: 'DUAL MONITOR', genre: 'Electronic', tags: [] },
+    { stage: 'BABYLON UPRISING', day: '16:00 - 17:00', time: 'DANI WHYLIE', artist: 'House, Techno, Electro', genre: '', tags: ['house', 'rave'] },
+    { stage: 'BABYLON UPRISING', day: '15:00 - 16:00', time: 'MONKEY WRENCH B2B DISMANTLE', artist: 'Bass, Dubstep, UKG', genre: '', tags: ['ukg', 'b2b'] },
+    { stage: 'BABYLON UPRISING', day: 'SUNDAY', time: '12:00 - 15:00', artist: 'RUFFNEK DISKOTEK 20TH BIRTHDAY FT. DUB BOY, ATKI2 & GUTTY', genre: 'Dub, Reggae, Dancehall', tags: ['dnb'] },
+    { stage: 'BBC INTRODUCING', day: 'THURSDAY', time: '20:00 - 23:00', artist: 'BBC RADIO 1 DANCE TAKEOVER', genre: 'Electronic, Dance', tags: [] },
+    { stage: 'BIMBLE INN', day: 'FRIDAY', time: '03:15 - 04:45', artist: 'ORBITAL\'S PHIL HARTNOLL', genre: 'Rave, Progressive House, Trance, Electronic', tags: ['rave', 'house', 'pioneer', 'hard'] },
+    { stage: 'HUMBLEWELL ACTIVE PLATFORM', day: 'THURSDAY', time: '20:00 - 22:00', artist: 'NICK MANASSEH (SPECIAL GUEST DJ)', genre: 'Dub, Reggae, Electronic', tags: ['dnb'] },
+    { stage: 'HUMBLEWELL ACTIVE PLATFORM', day: 'THURSDAY', time: '19:00 - 20:00', artist: 'MARV B (RESIDENT DJ)', genre: 'Electronic', tags: [] },
+    { stage: 'HUMBLEWELL ACTIVE PLATFORM', day: 'THURSDAY', time: '11:00 - 12:00', artist: 'FLOW & BASS YOGA', genre: 'Electronic, Bass', tags: [] },
+    { stage: 'HUMBLEWELL ACTIVE PLATFORM', day: 'FRIDAY', time: '11:00 - 12:00', artist: 'FLOW & BASS YOGA', genre: 'Electronic, Bass', tags: [] },
+    { stage: 'HUMBLEWELL ACTIVE PLATFORM', day: 'SATURDAY', time: '11:00 - 12:00', artist: 'FLOW & BASS YOGA', genre: 'Electronic, Bass', tags: [] },
+    { stage: 'HUMBLEWELL ACTIVE PLATFORM', day: 'SUNDAY', time: '11:00 - 12:00', artist: 'FLOW & BASS YOGA', genre: 'Electronic, Bass', tags: [] },
+    { stage: 'GLADE DOME', day: 'THURSDAY', time: '23:00 - 00:30', artist: 'DJ TENNIS & ASHEE PRES. TENASHEE', genre: 'House, Techno', tags: ['house', 'rave'] },
+    { stage: 'GLADE DOME', day: 'FRIDAY', time: '01:30 - 02:55', artist: 'NORTHSOUTH (DALE MUSSINGTON, HARRY MCCANNA & SAM BANGURA)', genre: 'Electronic, House, Techno', tags: ['house', 'rave'] },
+    { stage: 'GLADE DOME', day: 'FRIDAY', time: '00:00 - 01:30', artist: 'DYED SOUNDOROM', genre: 'House, Minimal Techno', tags: ['house', 'rave'] },
+    { stage: 'GLADE DOME', day: 'FRIDAY', time: '22:30 - 00:00', artist: 'MATHEW JONSON (LIVE)', genre: 'Minimal Techno, House', tags: ['house', 'rave', 'live'] },
+    { stage: 'GLADE DOME', day: 'FRIDAY', time: '21:00 - 22:30', artist: 'MARGARET DYGAS', genre: 'Minimal Techno, House', tags: ['house', 'rave'] },
+    { stage: 'GLADE DOME', day: 'FRIDAY', time: '19:30 - 21:00', artist: 'ION LUDWIG (LIVE)', genre: 'Minimal Techno, House', tags: ['house', 'rave', 'live'] },
+    { stage: 'GLADE DOME', day: 'FRIDAY', time: '18:00 - 19:30', artist: 'KEARUN', genre: 'Electronic, House', tags: ['house'] },
+    { stage: 'GLADE DOME', day: 'FRIDAY', time: '16:30 - 18:00', artist: 'RALPH LAWSON (LOST IN DUB)', genre: 'Dub Techno, Electronic', tags: ['dnb', 'rave'] },
+    { stage: 'GLADE DOME', day: 'SATURDAY', time: '01:30 - 02:55', artist: 'TRISTAN DA CUNHA B2B BRAWTHER', genre: 'House, Minimal House', tags: ['house', 'b2b'] },
+    { stage: 'GLADE DOME', day: 'SATURDAY', time: '00:00 - 01:30', artist: 'LAIDLAW B2B DR BANANA', genre: 'House, UK Garage', tags: ['house', 'ukg', 'b2b'] },
+    { stage: 'GLADE DOME', day: 'SATURDAY', time: '22:30 - 00:00', artist: 'SAOIRSE', genre: 'House, Techno, Electro', tags: ['house', 'rave'] },
+    { stage: 'GLADE DOME', day: 'SATURDAY', time: '21:00 - 22:30', artist: 'BRADLEY ZERO', genre: 'House, Disco, Jazz, Funk', tags: ['house'] },
+    { stage: 'GLADE DOME', day: 'SATURDAY', time: '19:30 - 21:00', artist: 'KEEFY G B2B GEORGIA', genre: 'Electronic, House', tags: ['house', 'b2b'] },
+    { stage: 'GLADE DOME', day: 'SATURDAY', time: '18:00 - 19:30', artist: 'MARLIE B2B PACH. B2B LOCKY', genre: 'Electronic, House', tags: ['house', 'b2b'] },
+    { stage: 'GLADE DOME', day: 'SATURDAY', time: '16:30 - 18:00', artist: 'FILA BRAZILLIA (DJ)', genre: 'Downtempo, Electronic, Trip Hop', tags: [] },
+    { stage: 'GLADE DOME', day: 'SATURDAY', time: '12:00 - 14:00', artist: 'TRUFFLE 101 PRESENTS: LAZY SUSAN (2STEPBEC, OLIVER.R, ZEUS)', genre: '2-Step, UKG', tags: ['ukg'] },
+    { stage: 'GLADE DOME', day: 'SUNDAY', time: '22:15 - 23:45', artist: 'DJ BORING B2B DJ SEINFELD', genre: 'Lo-Fi House', tags: ['house', 'b2b'] },
+    { stage: 'GLADE DOME', day: 'SUNDAY', time: '12:00 - 13:30', artist: 'WAX MATERIAL', genre: 'Electronic, House', tags: ['house'] },
+    { stage: 'TREE STAGE', day: 'THURSDAY', time: '02:05 - 02:55', artist: 'ALEXIS TAYLOR (HOT CHIP)', genre: 'Indie Electronic, House, Disco', tags: ['house'] },
+    { stage: 'TREE STAGE', day: 'THURSDAY', time: '01:05 - 01:55', artist: 'NORTHSOUTH: HEADING EAST', genre: 'Electronic, House, Techno', tags: ['house', 'rave'] },
+    { stage: 'TREE STAGE', day: 'THURSDAY', time: '23:55 - 00:55', artist: 'DANIEL AVERY (AMBIENT LIVE), CHERUB SANSON & TIM WHEATER (INSTRUMENTAL SOUND JOURNEY) – QUANTUM SOUND MEDITATION', genre: 'Ambient, Electronic, Techno, House', tags: ['house', 'rave', 'live'] },
+    { stage: 'TREE STAGE', day: 'THURSDAY', time: '18:50 - 19:50', artist: 'LEON VYNEHALL PRESENTS: WARM ROMANTIC', genre: 'House, Techno, Ambient Techno', tags: ['house', 'rave'] },
+    { stage: 'TREE STAGE', day: 'SATURDAY', time: '23:50 - 00:50', artist: 'JUAN ATKINS (AMBIENT)', genre: 'Techno, Electro, Ambient', tags: ['rave', 'pioneer'] },
+    { stage: 'TREE STAGE', day: 'SUNDAY', time: '23:20 - 00:20', artist: 'MAX COOPER (AMBIENT LIVE)', genre: 'Ambient, Electronic, Techno, House', tags: ['house', 'rave', 'live'] },
+];
+
+let genreChart, stageChart;
+let currentFilters = { genre: 'all', day: 'all', search: '' };
+
+document.addEventListener('DOMContentLoaded', () => {
+    setupFilters();
+    renderApp();
+    setupModal();
+});
+
+function setupFilters() {
+    document.getElementById('genre-filters').addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON') {
+            currentFilters.genre = e.target.dataset.genre;
+            updateActiveButton('genre-filters', e.target);
+            renderApp();
+        }
+    });
+    document.getElementById('day-filters').addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON') {
+            currentFilters.day = e.target.dataset.day;
+            updateActiveButton('day-filters', e.target);
+            renderApp();
+        }
+    });
+    document.getElementById('search-input').addEventListener('input', (e) => {
+        currentFilters.search = e.target.value.toLowerCase();
+        renderApp();
+    });
+}
+
+function updateActiveButton(containerId, activeButton) {
+    document.querySelectorAll(`#${containerId} button`).forEach(button => {
+        button.classList.remove('active');
+    });
+    activeButton.classList.add('active');
+}
+
+function filterData() {
+    return lineupData.filter(item => {
+        const genreMatch = currentFilters.genre === 'all' || item.tags.includes(currentFilters.genre);
+        const dayMatch = currentFilters.day === 'all' || item.day === currentFilters.day;
+        const searchMatch = item.artist.toLowerCase().includes(currentFilters.search.toLowerCase());
+        return genreMatch && dayMatch && searchMatch;
+    });
+}
+
+function renderApp() {
+    const filtered = filterData();
+    updateInsights(filtered);
+    renderSchedule(filtered);
+    renderCharts(filtered);
+}
+
+function updateInsights(data) {
+    document.getElementById('total-acts').textContent = data.length;
+    document.getElementById('pioneer-acts').textContent = data.filter(d => d.tags.includes('pioneer')).length;
+    document.getElementById('b2b-sets').textContent = data.filter(d => d.tags.includes('b2b')).length;
+    document.getElementById('live-sets').textContent = data.filter(d => d.tags.includes('live')).length;
+}
+
+function renderSchedule(data) {
+    const tbody = document.getElementById('schedule-body');
+    const noResults = document.getElementById('no-results');
+    tbody.innerHTML = '';
+    if (data.length === 0) {
+        noResults.classList.remove('hidden');
+        return;
+    }
+    noResults.classList.add('hidden');
+    data.forEach(item => {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-amber-50';
+        row.innerHTML = `
+            <td class="table-cell font-semibold text-slate-800">${item.artist}</td>
+            <td class="table-cell">${item.stage}</td>
+            <td class="table-cell">${item.day}</td>
+            <td class="table-cell">${item.time}</td>
+            <td class="table-cell">${item.genre}</td>
+            <td class="table-cell">
+                <button class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-1 px-3 rounded-full text-xs insight-btn" data-artist="${item.artist}">✨ Get Insights</button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+     // Add event listeners to the new insight buttons
+     document.querySelectorAll('.insight-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const artistName = e.target.dataset.artist;
+            showArtistInsights(artistName);
+        });
+    });
+}
+
+function renderCharts(data) {
+    const genreData = { dnb: 0, house: 0, ukg: 0, rave: 0, hard: 0 };
+    data.forEach(item => {
+        if(item.tags.includes('dnb')) genreData.dnb++;
+        if(item.tags.includes('house')) genreData.house++;
+        if(item.tags.includes('ukg')) genreData.ukg++;
+        if(item.tags.includes('rave')) genreData.rave++;
+        if(item.tags.includes('hard')) genreData.hard++;
+    });
+
+    const stageCounts = data.reduce((acc, item) => {
+        acc[item.stage] = (acc[item.stage] || 0) + 1;
+        return acc;
+    }, {});
+    
+    const sortedStages = Object.entries(stageCounts).sort((a,b) => b[1] - a[1]).slice(0, 7);
+    const stageLabels = sortedStages.map(item => item[0]);
+    const stageData = sortedStages.map(item => item[1]);
+
+    const genreChartCtx = document.getElementById('genre-chart').getContext('2d');
+    const stageChartCtx = document.getElementById('stage-chart').getContext('2d');
+    
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    boxWidth: 12,
+                    font: { size: 12 }
+                }
+            }
+        }
+    };
+
+    if (genreChart) genreChart.destroy();
+    genreChart = new Chart(genreChartCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['DnB/Jungle', 'House/Disco', 'UK Garage', 'Rave/Acid', 'Hard House/Trance'],
+            datasets: [{
+                data: Object.values(genreData),
+                backgroundColor: ['#F59E0B', '#10B981', '#3B82F6', '#EF4444', '#8B5CF6'],
+                borderColor: '#FDFBF7',
+                borderWidth: 4,
+            }]
+        },
+        options: { ...chartOptions }
+    });
+    
+    const barChartOptions = { ...chartOptions };
+    barChartOptions.scales = {
+        y: {
+            beginAtZero: true,
+            grid: {
+                drawBorder: false,
+            },
+            ticks: {
+                font: { size: 12 },
+                color: '#64748B',
+                stepSize: 1
+            }
+        },
+        x: {
+            grid: {
+                display: false
+            },
+            ticks: {
+                font: { size: 12 },
+                color: '#64748B',
+                autoSkip: false,
+                maxRotation: 45,
+                minRotation: 45
+            }
+        }
+    };
+    barChartOptions.plugins.legend.display = false;
+    
+    if (stageChart) stageChart.destroy();
+    stageChart = new Chart(stageChartCtx, {
+        type: 'bar',
+        data: {
+            labels: stageLabels,
+            datasets: [{
+                label: 'Number of Acts',
+                data: stageData,
+                backgroundColor: '#F59E0B',
+                borderRadius: 4
+            }]
+        },
+        options: barChartOptions
+    });
+}
+
+// LLM Integration for Artist Insights
+const artistModal = document.getElementById('artist-modal');
+const closeModalBtn = document.getElementById('close-modal');
+const modalArtistName = document.getElementById('modal-artist-name');
+const modalArtistBio = document.getElementById('modal-artist-bio');
+const modalSpinner = document.getElementById('modal-spinner');
+const modalErrorMessage = document.getElementById('modal-error-message');
+
+function setupModal() {
+    closeModalBtn.addEventListener('click', () => {
+        artistModal.classList.remove('open');
+    });
+    artistModal.addEventListener('click', (e) => {
+        if (e.target === artistModal) {
+            artistModal.classList.remove('open');
+        }
+    });
+}
+
+async function showArtistInsights(artistName) {
+    modalArtistName.textContent = artistName;
+    modalArtistBio.textContent = '';
+    modalErrorMessage.classList.add('hidden');
+    modalSpinner.classList.remove('hidden');
+    artistModal.classList.add('open');
+
+    try {
+        let chatHistory = [];
+        const prompt = `Provide a concise summary of ${artistName}'s music style and significance within electronic music genres such as drum and bass, dnb, jungle, hardcore, happy hardcore, acid house, 90s rave, garage, ukg, speed garage, hard house, hard trance, house, and disco. Keep the summary to 3-4 sentences.`;
+        chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+        const payload = { contents: chatHistory };
+        const apiKey = ""; // Canvas will automatically provide the API key
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        if (result.candidates && result.candidates.length > 0 &&
+            result.candidates[0].content && result.candidates[0].content.parts &&
+            result.candidates[0].content.parts.length > 0) {
+            const text = result.candidates[0].content.parts[0].text;
+            modalArtistBio.textContent = text;
+        } else {
+            modalErrorMessage.textContent = 'No insights found for this artist.';
+            modalErrorMessage.classList.remove('hidden');
+        }
+    } catch (error) {
+        console.error('Error fetching artist insights:', error);
+        modalErrorMessage.textContent = 'Failed to load insights due to a network or API error. Please try again.';
+        modalErrorMessage.classList.remove('hidden');
+    } finally {
+        modalSpinner.classList.add('hidden');
+    }
+}
+</script>
+</body>
+</html>
